@@ -37,10 +37,15 @@ async def lifespan(app: FastAPI):
     app.state.db.create_tables()
     app.state.db.sync_indicator_meta(ALL_INDICATORS)
 
-    # Initialize Automation Pipeline
-    from utils.automation import BackgroundPipeline
     app.state.pipeline = BackgroundPipeline(app.state.db)
     app.state.pipeline.start()
+
+    # 데이터가 하나도 없다면 서버 시작 시 즉시 첫 수집 실행 (비동기 백그라운드)
+    stats = app.state.db.get_collection_stats()
+    if stats.get("total_records", 0) == 0:
+        logger.info("Empty database detected. Triggering initial data collection...")
+        import threading
+        threading.Thread(target=app.state.pipeline.run_full_pipeline).start()
 
     yield
 
