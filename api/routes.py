@@ -220,6 +220,12 @@ def get_composite_score(request: Request):
     return {
         "date": str(result.date),
         "total_score": result.total_score,
+        # v4.0: 3-Layer Scores
+        "predictive_score": result.predictive_score,
+        "diagnostic_score": result.diagnostic_score,
+        "confirmation_score": result.confirmation_score,
+        "score_gap": result.score_gap,
+        # 기존
         "regime": result.regime,
         "regime_description": result.regime_description,
         "investment_action": result.investment_action,
@@ -227,12 +233,19 @@ def get_composite_score(request: Request):
         "confidence_level": result.confidence_level,
         "data_coverage": result.data_coverage,
         "signal_count": result.signal_count,
+        # v4.0: 확률 + 트리거 + 가격
+        "regime_probability": result.regime_probability,
+        "direction_probability": result.direction_probability,
+        "trigger_list": result.trigger_list,
+        "demand_sub": result.demand_sub,
+        "price_regime": result.price_regime,
         "dimensions": {
             name: {
                 "score": dim.score,
                 "weight": dim.weight,
                 "confidence": dim.confidence,
                 "contributing_signals": dim.contributing_signals,
+                "sub_scores": dim.sub_scores,   # v4.0: demand_cycle 서브차원
             }
             for name, dim in result.dimensions.items()
         },

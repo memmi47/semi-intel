@@ -2,8 +2,13 @@ from __future__ import annotations
 """
 Semi-Intel Indicator Registry
 ==============================
-책 기반 16개 매크로 지표 + 6개 반도체 특화 지표
+책 기반 16개 매크로 지표 + 6개 반도체 특화 지표 + 2개 신규 매크로 지표
 각 지표에 FRED 시리즈 코드, 수집 주기, 반도체 연관성 매핑
+
+v4.0 변경사항:
+- TimingClass 추가: Leading / Coincident / Lagging 분류로 3-Layer Score 지원
+- HY_SPREAD (High-Yield Credit Spread): 신용 리스크 선행지표
+- SAHM_RULE: 실시간 경기침체 탐지
 """
 
 from dataclasses import dataclass, field
@@ -33,6 +38,19 @@ class Dimension(Enum):
     GLOBAL = "global_demand"
 
 
+class TimingClass(Enum):
+    """
+    지표의 시간적 특성 분류 (v4.0 신규)
+
+    선행지표(Leading): 사이클 전환을 2~18개월 선행하여 감지 → Predictive Score
+    동행지표(Coincident): 현재 경기 상태를 실시간 반영 → Diagnostic Score
+    후행지표(Lagging): 과거 사이클을 사후 확인 → Confirmation Score
+    """
+    LEADING = "leading"
+    COINCIDENT = "coincident"
+    LAGGING = "lagging"
+
+
 @dataclass
 class FredSeries:
     """FRED에서 수집할 개별 시리즈"""
@@ -59,6 +77,8 @@ class Indicator:
     external_source: Optional[str] = None
     lag_days: int = 0
     weight_in_dimension: float = 1.0
+    timing_class: TimingClass = TimingClass.COINCIDENT  # v4.0: 기본값 동행
+    demand_sub: str = ""   # v4.0: demand 서브차원 ("ai_infra" | "consumer_traditional" | "")
 
 
 # ============================================================
@@ -78,6 +98,8 @@ DURABLE_GOODS = Indicator(
     semi_relevance="비국방 자본재(항공기 제외) 주문은 기업의 IT/반도체 장비 투자 의향을 직접 반영",
     signal_logic="3개월 연속 증가 → 반도체 수요 확대 신호, 감소 → 재고조정/수요 둔화",
     weight_in_dimension=1.2,
+    timing_class=TimingClass.LEADING,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("DGORDER", "Durable Goods New Orders, Total"),
         FredSeries("NEWORDER", "Manufacturers New Orders: Nondefense Capital Goods ex Aircraft"),
@@ -122,6 +144,8 @@ ISM_MANUFACTURING = Indicator(
     semi_relevance="New Orders 세부지표가 반도체 수요 2-3개월 선행. Supplier Deliveries는 공급망 병목 신호",
     signal_logic="PMI > 50 확장, New Orders > Inventories → 반도체 수요 강세",
     weight_in_dimension=1.3,
+    timing_class=TimingClass.LEADING,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("NAPM", "ISM Manufacturing: PMI Composite Index"),
         FredSeries("NAPMNOI", "ISM Manufacturing: New Orders Index"),
@@ -144,6 +168,7 @@ GDP = Indicator(
     semi_relevance="IT 투자(Equipment & Software) 세부항목이 반도체 수요의 거시적 프레임",
     signal_logic="GDP 성장 + IT투자 가속 → 반도체 슈퍼사이클, GDP 둔화 + IT투자 유지 → AI 구조적 성장",
     weight_in_dimension=1.0,
+    timing_class=TimingClass.LAGGING,
     fred_series=[
         FredSeries("GDP", "Gross Domestic Product (nominal)"),
         FredSeries("GDPC1", "Real GDP"),
@@ -167,6 +192,7 @@ YIELD_CURVE = Indicator(
     semi_relevance="역전 시 12-18개월 후 경기침체 → 반도체 다운사이클 선행 경고",
     signal_logic="역전 → 반도체 주식 비중 축소 준비, 정상화 재개 → 사이클 바닥 근접",
     weight_in_dimension=1.1,
+    timing_class=TimingClass.LEADING,
     fred_series=[
         FredSeries("T10Y2Y", "10-Year Treasury Minus 2-Year Treasury"),
         FredSeries("T10Y3M", "10-Year Treasury Minus 3-Month Treasury"),
@@ -192,6 +218,8 @@ NONFARM_PAYROLLS = Indicator(
     lag_days=3,
     semi_relevance="IT/전문서비스 고용 추이는 테크 투자 방향성 반영",
     signal_logic="IT/전문서비스 고용 증가 + 제조업 고용 안정 → 반도체 수요 견조",
+    timing_class=TimingClass.LAGGING,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("PAYEMS", "All Employees: Total Nonfarm"),
         FredSeries("MANEMP", "All Employees: Manufacturing"),
@@ -214,6 +242,7 @@ CPI = Indicator(
     lag_days=13,
     semi_relevance="인플레이션 → Fed 금리 인상 → 테크 밸류에이션 압박",
     signal_logic="Core CPI 하락 추세 → Fed 완화 기대 → 반도체 주식 멀티플 확장",
+    timing_class=TimingClass.LAGGING,
     fred_series=[
         FredSeries("CPIAUCSL", "CPI: All Items"),
         FredSeries("CPILFESL", "CPI: All Items Less Food & Energy (Core)"),
@@ -235,6 +264,7 @@ PPI = Indicator(
     lag_days=15,
     semi_relevance="중간재 PPI는 반도체 원자재/장비 비용 반영",
     signal_logic="중간재 PPI 상승 + 최종재 안정 → 반도체 마진 압박",
+    timing_class=TimingClass.LAGGING,
     fred_series=[
         FredSeries("PPIACO", "PPI: All Commodities"),
         FredSeries("WPSID61", "PPI: Intermediate Demand"),
@@ -255,6 +285,8 @@ RETAIL_SALES = Indicator(
     lag_days=14,
     semi_relevance="전자/가전 소매판매가 소비자향 반도체(Mobile DRAM, NAND) 수요 proxy",
     signal_logic="전자제품 소매 증가 → 모바일/PC DRAM/NAND 수요 강세",
+    timing_class=TimingClass.COINCIDENT,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("RSAFS", "Advance Retail Sales: Retail and Food Services"),
         FredSeries("RSEAS", "Retail Sales: Electronics and Appliance Stores"),
@@ -274,6 +306,8 @@ CONSUMER_CONFIDENCE = Indicator(
     lag_days=5,
     semi_relevance="소비심리 → 전자기기 구매 의향 선행",
     signal_logic="기대지수 상승 → 내구재(전자기기) 소비 회복 기대",
+    timing_class=TimingClass.COINCIDENT,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("UMCSENT", "University of Michigan: Consumer Sentiment"),
         FredSeries("CSCICP03USM665S", "Consumer Opinion Surveys: Confidence Indicators: OECD"),
@@ -293,6 +327,7 @@ TRADE_BALANCE = Indicator(
     lag_days=35,
     semi_relevance="반도체/전자부품 수출입 세부 데이터로 글로벌 수요 방향 파악",
     signal_logic="반도체 수출 증가 → 글로벌 수요 회복",
+    timing_class=TimingClass.LAGGING,
     fred_series=[
         FredSeries("BOPGSTB", "Trade Balance: Goods and Services"),
         FredSeries("EXPGS", "Exports of Goods and Services"),
@@ -313,6 +348,7 @@ FOMC = Indicator(
     lag_days=0,
     semi_relevance="금리 경로가 테크/반도체 밸류에이션의 할인율 직접 결정",
     signal_logic="Dovish 전환 → 반도체 주식 강세, Hawkish → 밸류에이션 조정",
+    timing_class=TimingClass.COINCIDENT,
     fred_series=[
         FredSeries("FEDFUNDS", "Effective Federal Funds Rate"),
         FredSeries("DFEDTARU", "Fed Funds Target Rate Upper"),
@@ -337,6 +373,7 @@ LEI = Indicator(
     lag_days=22,
     semi_relevance="6개월 연속 하락 시 경기침체 경고 → 반도체 다운사이클 대비",
     signal_logic="3개월 연속 하락 → 경계, 6개월 → 방어적 포지션",
+    timing_class=TimingClass.LEADING,
     fred_series=[
         FredSeries("USSLIND", "Leading Index for the United States"),
         FredSeries("USREC", "NBER Recession Indicators"),
@@ -355,6 +392,8 @@ HOUSING = Indicator(
     lag_days=18,
     semi_relevance="건설 경기 → 가전/IoT 수요 간접 연결",
     signal_logic="주택 착공 증가 → 가전/스마트홈 반도체 수요 간접 지지",
+    timing_class=TimingClass.LEADING,
+    demand_sub="consumer_traditional",
     fred_series=[
         FredSeries("HOUST", "New Privately-Owned Housing Units Started"),
         FredSeries("PERMIT", "New Privately-Owned Housing Units Authorized"),
@@ -373,6 +412,7 @@ WEEKLY_CLAIMS = Indicator(
     lag_days=4,
     semi_relevance="고빈도 경기 실시간 모니터링",
     signal_logic="4주 이동평균 상승 추세 → 경기 둔화 초기 신호",
+    timing_class=TimingClass.COINCIDENT,
     fred_series=[
         FredSeries("ICSA", "Initial Claims"),
         FredSeries("CCSA", "Continued Claims"),
@@ -391,6 +431,7 @@ PRODUCTIVITY = Indicator(
     lag_days=35,
     semi_relevance="생산성 향상 → IT/AI 투자 정당화 근거",
     signal_logic="생산성 가속 → AI/자동화 투자 확대 근거 강화",
+    timing_class=TimingClass.LAGGING,
     fred_series=[
         FredSeries("OPHNFB", "Nonfarm Business Sector: Real Output Per Hour"),
         FredSeries("ULCNFB", "Nonfarm Business Sector: Unit Labor Cost"),
@@ -414,6 +455,8 @@ SOX_INDEX = Indicator(
     semi_relevance="반도체 섹터 시장 심리 직접 반영",
     signal_logic="200일 이동평균 대비 위치 → 추세 판단",
     yahoo_symbols=["^SOX", "SOXX", "SMH"],
+    timing_class=TimingClass.COINCIDENT,
+    demand_sub="consumer_traditional",
 )
 
 CHINA_PMI = Indicator(
@@ -428,6 +471,7 @@ CHINA_PMI = Indicator(
     lag_days=1,
     semi_relevance="중국은 반도체 최대 소비국. 제조업 경기가 레거시 반도체 수요 좌우",
     signal_logic="PMI > 50 + 신규주문 확대 → 반도체 수출 수요 회복",
+    timing_class=TimingClass.COINCIDENT,
     fred_series=[
         FredSeries("CHNMPMINDMEI", "China Manufacturing PMI (OECD)"),
     ],
@@ -446,6 +490,7 @@ MEMORY_DRAM_PROXY = Indicator(
     dimension=Dimension.PRICE,
     book_chapter="N/A",
     lag_days=0,
+    timing_class=TimingClass.COINCIDENT,
     semi_relevance=(
         "DRAM pure player 주가 basket으로 DRAM 가격 방향성 대리. "
         "Micron(DRAM ~70% 매출) + Nanya(DRAM only, 레거시 비중 높아 범용 DRAM 가격의 순수 반영체). "
@@ -465,6 +510,7 @@ MEMORY_NAND_PROXY = Indicator(
     dimension=Dimension.PRICE,
     book_chapter="N/A",
     lag_days=0,
+    timing_class=TimingClass.COINCIDENT,
     semi_relevance=(
         "NAND pure player 주가 basket으로 NAND 가격 방향성 대리. "
         "SanDisk(SNDK, NAND only, NASDAQ 대형주) + Kioxia(285A.T, NAND only, 2024 IPO). "
@@ -484,6 +530,8 @@ HBM_PREMIUM = Indicator(
     dimension=Dimension.DEMAND,
     book_chapter="N/A",
     lag_days=0,
+    timing_class=TimingClass.LEADING,
+    demand_sub="ai_infra",
     semi_relevance=(
         "SK하이닉스 주가의 DRAM peer 대비 초과수익률 = HBM/AI 수요 프리미엄. "
         "SK하이닉스와 Micron/Nanya 모두 DRAM을 생산하지만, SK하이닉스만 더 오르면 "
@@ -506,6 +554,7 @@ EQUIP_PROXY = Indicator(
     dimension=Dimension.SUPPLY,
     book_chapter="N/A",
     lag_days=0,
+    timing_class=TimingClass.LEADING,
     semi_relevance=(
         "SEMI B/B Ratio 직접 확보 불가 → 장비 3대 기업 주가 basket으로 대체. "
         "ASML(리소그래피 독점), Applied Materials(증착/에칭), Lam Research(에칭/증착). "
@@ -528,6 +577,8 @@ WSTS_SALES = Indicator(
     book_chapter="N/A",
     lag_days=60,  # 2개월 후행 명시
     weight_in_dimension=0.5,  # 후행 지표이므로 가중치 하향
+    timing_class=TimingClass.LAGGING,
+    demand_sub="consumer_traditional",
     semi_relevance=(
         "WSTS 글로벌 반도체 매출 데이터 (SIA 보도자료 경유). "
         "2개월 후행하므로 선행 지표가 아닌 사이클 확인(confirmation) 용도. "
@@ -552,6 +603,62 @@ HYPERSCALER_CAPEX = Indicator(
     signal_logic="CapEx YoY 30%+ → AI 반도체 수요 강세 지속",
     yahoo_symbols=["MSFT", "GOOGL", "AMZN", "META"],
     external_source="sec_edgar",
+    timing_class=TimingClass.LAGGING,
+    demand_sub="ai_infra",
+)
+
+# ============================================================
+# v4.0 신규 지표: 매크로 리스크 선행지표
+# ============================================================
+
+HY_CREDIT_SPREAD = Indicator(
+    id="HY_SPREAD",
+    name="High Yield Credit Spread (BofA)",
+    tier=Tier.MACRO,
+    category="Financial Markets",
+    source="Federal Reserve (FRED)",
+    frequency=Frequency.DAILY,
+    dimension=Dimension.MACRO,
+    book_chapter="N/A",
+    lag_days=0,
+    semi_relevance=(
+        "하이일드 채권 스프레드는 기업 신용 리스크를 실시간 반영. "
+        "스프레드 확대 → 리스크 회피 심화 → 반도체 주식 매도 압력. "
+        "스프레드 축소 → 위험 선호 회복 → 사이클 바닥 확인 신호. "
+        "리세션 모델(Hamilton 1989)이 입증한 바에 따르면 신용 스프레드는 "
+        "공식 경기침체 판정보다 3~6개월 선행함."
+    ),
+    signal_logic="5%p 이상 → strong bearish (리스크 오프), 3~5%p → bearish, "
+                 "3%p 미만 → bullish. 스프레드 축소 전환이 바닥 확인 트리거.",
+    fred_series=[
+        FredSeries("BAMLH0A0HYM2", "ICE BofA US High Yield Index Option-Adjusted Spread"),
+    ],
+    timing_class=TimingClass.LEADING,
+    weight_in_dimension=1.2,
+)
+
+SAHM_RULE = Indicator(
+    id="SAHM_RULE",
+    name="Sahm Rule Recession Indicator",
+    tier=Tier.MACRO,
+    category="Employment",
+    source="Federal Reserve (FRED)",
+    frequency=Frequency.MONTHLY,
+    dimension=Dimension.MACRO,
+    book_chapter="N/A",
+    lag_days=3,
+    semi_relevance=(
+        "Sahm Rule: 실업률 3개월 이동평균이 직전 12개월 최저치 대비 0.5%p 이상 상승하면 경기침체 시작. "
+        "1970년 이후 모든 리세션을 정확히 포착한 실증적으로 검증된 지표. "
+        "0.5 이상이면 반도체 수요 급격한 둔화 → 즉각적 비중 축소 신호."
+    ),
+    signal_logic="0.5+ → strong bearish (리세션 진입), 0.3~0.5 → bearish (경기 둔화 경고), "
+                 "0.3 미만 → neutral (정상 범위)",
+    fred_series=[
+        FredSeries("SAHMREALTIME", "Sahm Rule Recession Indicator (Real-time)"),
+    ],
+    timing_class=TimingClass.COINCIDENT,
+    weight_in_dimension=1.1,
 )
 
 # ============================================================
@@ -570,7 +677,21 @@ ALL_INDICATORS: list[Indicator] = [
     SOX_INDEX, CHINA_PMI,
     MEMORY_DRAM_PROXY, MEMORY_NAND_PROXY, HBM_PREMIUM,
     EQUIP_PROXY, WSTS_SALES, HYPERSCALER_CAPEX,
+    # v4.0 신규
+    HY_CREDIT_SPREAD, SAHM_RULE,
 ]
+
+# Timing class별 분류 (3-Layer Score 산출용)
+LEADING_INDICATORS = [ind for ind in ALL_INDICATORS
+                       if ind.timing_class == TimingClass.LEADING]
+COINCIDENT_INDICATORS = [ind for ind in ALL_INDICATORS
+                          if ind.timing_class == TimingClass.COINCIDENT]
+LAGGING_INDICATORS = [ind for ind in ALL_INDICATORS
+                       if ind.timing_class == TimingClass.LAGGING]
+
+# Demand 서브차원 분류
+DEMAND_AI_INFRA = [ind for ind in ALL_INDICATORS if ind.demand_sub == "ai_infra"]
+DEMAND_CONSUMER = [ind for ind in ALL_INDICATORS if ind.demand_sub == "consumer_traditional"]
 
 FRED_INDICATORS = [ind for ind in ALL_INDICATORS if ind.fred_series]
 YAHOO_INDICATORS = [ind for ind in ALL_INDICATORS if ind.yahoo_symbols]

@@ -75,6 +75,9 @@ class SignalGenerator:
             "EQUIP_PROXY": self._signal_equip_proxy,
             "WSTS": self._signal_wsts,
             "HYPERSCALER_CAPEX": self._signal_hyperscaler_capex,
+            # v4.0 신규
+            "HY_SPREAD": self._signal_hy_spread,
+            "SAHM_RULE": self._signal_sahm_rule,
         }
 
     def _load_series(self, series_code: str, months: int = 60) -> pd.Series | None:
@@ -93,8 +96,22 @@ class SignalGenerator:
 
     def _make_signal(self, indicator_id: str, dimension: str,
                      score: float, sub_signals: dict,
-                     description: str) -> Signal:
-        """표준 시그널 객체 생성"""
+                     description: str,
+                     use_sigmoid: bool = False) -> Signal:
+        """
+        표준 시그널 객체 생성
+
+        Args:
+            use_sigmoid: True = 선행지표용 Sigmoid 변환 적용.
+                         중앙값(0.5) 근처에서 불감대를 만들고 극단값에서 신호를 강화.
+                         k=6: 변곡점이 0.35/0.65에 위치 → 임계값 근처 신호 날카롭게 포착.
+        """
+        if use_sigmoid:
+            # Sigmoid: score = 1 / (1 + exp(-k*(x-0.5)))
+            # k=6 → 0.35 이하 bearish, 0.65 이상 bullish 로 수렴
+            import math
+            score = 1.0 / (1.0 + math.exp(-6 * (score - 0.5)))
+
         if score >= 0.6:
             sig_type = "bullish"
         elif score <= 0.4:
@@ -1023,3 +1040,120 @@ class SignalGenerator:
             else:
                 logger.debug(f"  {ind_id}: no data or skipped")
         return signals
+
+    # ============================================================
+    # v4.0 신규: HY Credit Spread + Sahm Rule
+    # ============================================================
+
+    def _signal_hy_spread(self) -> Signal | None:
+        """
+        HY Credit Spread (ICE BofA) → 리스크 선호도 / 신용 환경 시그널
+
+        해석:
+          - 3%p 미만: 신용환경 양호 → bullish (위험자산 선호)
+          - 3~5%p: 경계 → bearish (리스크 오프 진행)
+          - 5%p 이상: 신용경색 위험 → strong bearish
+          - 추세(MoM 변화): 확대 추세면 악화, 축소 전환이면 바닥 신호
+        """
+        spread = self._load_series("BAMLH0A0HYM2", months=24)
+        if spread is None or len(spread) < 5:
+            return None
+
+        sub = {}
+        current = float(spread.iloc[-1])
+        sub["spread_pct"] = round(current, 2)
+
+        # MoM 변화 (월별 이동평균 비교)
+        ma1m = float(spread.iloc[-1:].mean())
+        ma3m = float(spread.iloc[-66:].mean()) if len(spread) >= 66 else ma1m
+        trend = ma1m - ma3m
+        sub["trend_3m"] = round(trend, 3)  # 양수 = 확대 추세 (악화), 음수 = 축소 추세 (개선)
+
+        # 스프레드 레벨 기반 점수 (낮을수록 bullish)
+        if current < 3.0:
+            level_score = 0.75   # best: 신용환경 양호
+        elif current < 4.0:
+            level_score = 0.60
+        elif current < 5.0:
+            level_score = 0.40
+        else:
+            level_score = 0.20   # worst: 신용경색 위험
+
+        # 추세 보정 (0~±0.15)
+        trend_adj = max(-0.15, min(0.15, -trend * 0.05))  # 축소 추세(음수) → 점수 상향
+        score = max(0.05, min(0.95, level_score + trend_adj))
+        sub["level_score"] = round(level_score, 2)
+
+        # 추세 전환 감지 (바닥 시그널)
+        if trend < -0.2 and current < 5.0:
+            desc = f"HY Spread {current:.1f}%p (3개월 축소 추세 −{abs(trend):.2f}p) → 위험 선호 회복, 사이클 바닥 근접 시사"
+        elif current >= 5.0:
+            desc = f"HY Spread {current:.1f}%p — 신용경색 수준, 반도체 섹터 리스크 오프 압력 강함"
+        elif trend > 0.3:
+            desc = f"HY Spread {current:.1f}%p (확대 추세 +{trend:.2f}p) — 신용 리스크 증가, 방어적 포지션 필요"
+        else:
+            dir_txt = "안정적" if abs(trend) < 0.1 else ("개선 중" if trend < 0 else "소폭 악화")
+            desc = f"HY Spread {current:.1f}%p ({dir_txt}) — 신용환경 양호, 위험 선호 지속"
+
+        return self._make_signal(
+            indicator_id="HY_SPREAD",
+            dimension="macro_regime",
+            score=score,
+            sub_signals=sub,
+            description=desc,
+            use_sigmoid=True,  # 선행지표: sigmoid 적용
+        )
+
+    def _signal_sahm_rule(self) -> Signal | None:
+        """
+        Sahm Rule Recession Indicator → 실시간 경기침체 탐지
+
+        Sahm Rule: 실업률 3개월 이동평균 - 직전 12개월 최저치
+          - 0.5 이상: 경기침체 시작 (1970년 이후 모든 리세션 정확히 포착)
+          - 0.3~0.5: 경기 둔화 경고
+          - 0.3 미만: 정상 범위
+        """
+        sahm = self._load_series("SAHMREALTIME", months=24)
+        if sahm is None or len(sahm) < 3:
+            return None
+
+        sub = {}
+        current = float(sahm.iloc[-1])
+        sub["sahm_value"] = round(current, 3)
+
+        # 3개월 전 값과 비교 (추세)
+        prev3m = float(sahm.iloc[-4]) if len(sahm) >= 4 else current
+        trend = current - prev3m
+        sub["trend_3m"] = round(trend, 3)
+
+        # 점수 산출
+        if current >= 0.5:
+            score = 0.10  # strong bearish: 리세션 진입
+        elif current >= 0.3:
+            score = 0.35  # bearish: 경기 둔화 경고
+        elif current >= 0.1:
+            score = 0.55  # 약간 상승, 모니터링
+        else:
+            score = 0.70  # 정상 범위, 경기침체 위험 낮음
+
+        # 추세 보정
+        trend_adj = max(-0.1, min(0.1, -trend * 0.5))  # 상승 추세 → bearish 보정
+        score = max(0.05, min(0.95, score + trend_adj))
+
+        if current >= 0.5:
+            desc = f"Sahm Rule {current:.2f} — 경기침체 진입 기준 초과 (0.5p). 반도체 수요 급냉 우려"
+        elif current >= 0.3:
+            desc = f"Sahm Rule {current:.2f} — 경기 둔화 경고 구간 (0.3~0.5p). 방어적 포지션 강화"
+        elif trend > 0.1:
+            desc = f"Sahm Rule {current:.2f} (↑ 상승 추세) — 아직 정상이나 악화 추이. 모니터링 필요"
+        else:
+            desc = f"Sahm Rule {current:.2f} — 정상 범위 (0.3p 미만). 경기침체 위험 낮음"
+
+        return self._make_signal(
+            indicator_id="SAHM_RULE",
+            dimension="macro_regime",
+            score=score,
+            sub_signals=sub,
+            description=desc,
+            use_sigmoid=False,  # 동행지표: 선형 변환 유지
+        )

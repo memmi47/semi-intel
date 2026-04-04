@@ -94,7 +94,7 @@ class Signal(Base):
 
 
 class CompositeScore(Base):
-    """복합 사이클 스코어 (Phase 2에서 사용)"""
+    """복합 사이클 스코어 (v4.0: 3-Layer Score 지원)"""
     __tablename__ = "composite_scores"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -107,7 +107,12 @@ class CompositeScore(Base):
     global_score = Column(Float)
     regime = Column(String(20))                          # expansion, late_cycle, contraction, recovery
     investment_action = Column(Text)
-    trend_alert = Column(String(100))                    # Momentum/Divergence Alert
+    trend_alert = Column(String(200))                    # Momentum/Divergence Alert
+    # v4.0 신규 컬럼
+    predictive_score = Column(Float)                     # 선행지표 기반 (3~6개월 방향)
+    diagnostic_score = Column(Float)                     # 동행지표 기반 (현재 위치)
+    confirmation_score = Column(Float)                   # 후행지표 기반 (Regime 확증)
+    regime_probability = Column(JSON)                    # {expansion: 0.65, late_cycle: 0.25, ...}
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
