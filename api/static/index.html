@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Semi-Intel Dashboard</title>
+<meta name="description" content="Semiconductor Cycle Investment Intelligence Dashboard — Real-time composite scoring based on 24 economic and sector indicators.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#06080d;--surface:#0c1018;--elevated:#121822;--border:#1c2638;--text:#c8d6e5;--dim:#5a6d84;--muted:#3a4a5e;--accent:#00d4aa;--warn:#f0b429;--blue:#4dabf7;--red:#ff6b6b;--font:'Menlo','Consolas',monospace;--sans:-apple-system,'Segoe UI',sans-serif}
@@ -16,10 +17,13 @@ header{background:linear-gradient(180deg,#0c1220,var(--bg));border-bottom:1px so
 .hdr-stats{display:flex;gap:20px;font-size:10px;font-family:var(--font)}
 .hdr-stats div{text-align:right}
 .hdr-stats .label{color:var(--dim)}
-.tabs{display:flex;gap:2px;margin-top:14px}
+.tabs{display:flex;gap:2px;margin-top:14px;align-items:center}
 .tab{padding:7px 18px;font-size:11px;font-family:var(--font);letter-spacing:1px;cursor:pointer;background:none;color:var(--dim);border:none;border-bottom:2px solid transparent}
 .tab.active{color:var(--accent);background:var(--elevated);border-bottom-color:var(--accent)}
 .tab:hover{color:var(--text)}
+.tab-muted{padding:7px 14px;font-size:9px;font-family:var(--font);letter-spacing:1px;cursor:pointer;background:none;color:var(--muted);border:none;border-bottom:2px solid transparent;margin-left:auto;opacity:0.7}
+.tab-muted.active{color:var(--dim);border-bottom-color:var(--muted);opacity:1}
+.tab-muted:hover{opacity:1;color:var(--dim)}
 main{padding:20px 24px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid3{display:grid;grid-template-columns:280px 1fr 280px;gap:16px;align-items:start}
@@ -42,7 +46,7 @@ main{padding:20px 24px}
 .action-item{font-size:11px;padding:6px 0;border-bottom:1px solid var(--border);line-height:1.5}
 .action-item:last-child{border-bottom:none}
 .action-arrow{color:var(--accent);margin-right:6px}
-.sc-row{display:grid;grid-template-columns:140px 45px 55px 1fr 55px 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--font)}
+.sc-row{display:grid;grid-template-columns:160px 60px 1fr 55px 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--font)}
 .sc-header{color:var(--dim);font-size:9px}
 .regime-box{padding:14px;border-radius:8px;border-top:3px solid}
 .regime-box h4{font-size:11px;font-family:var(--font)}
@@ -62,6 +66,37 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
 .alert-banner{background:rgba(240,180,41,0.15);border:1px solid rgba(240,180,41,0.5);border-left:4px solid var(--warn);padding:12px;border-radius:6px;margin-bottom:16px;font-family:var(--font);font-size:11px;color:var(--text);display:flex;align-items:center;gap:12px}
 .alert-banner.bull{background:rgba(0,212,170,0.15);border-color:rgba(0,212,170,0.5);border-left-color:var(--accent)}
 .alert-banner.bear{background:rgba(255,107,107,0.15);border-color:rgba(255,107,107,0.5);border-left-color:var(--red)}
+/* Cycle Diagram */
+.cycle-diagram{position:relative;width:220px;height:220px;margin:0 auto 16px}
+.cycle-ring{position:absolute;inset:0}
+.cycle-phase{position:absolute;width:92px;height:92px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;font-family:var(--font);letter-spacing:1px;opacity:0.35;transition:all 0.4s;border:2px solid transparent;cursor:default}
+.cycle-phase.active{opacity:1;transform:scale(1.08);box-shadow:0 0 20px rgba(0,0,0,0.5)}
+.cycle-phase .ph-label{font-weight:700;font-size:10px}
+.cycle-phase .ph-range{font-size:8px;margin-top:2px;opacity:0.7}
+.cycle-marker{position:absolute;width:12px;height:12px;border-radius:50%;z-index:5;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 4px 2px rgba(255,255,255,0.3)}50%{box-shadow:0 0 12px 4px rgba(255,255,255,0.6)}}
+/* Evidence panel */
+.evidence-panel{background:var(--elevated);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px}
+.evidence-title{font-size:10px;font-family:var(--font);letter-spacing:2px;color:var(--warn);margin-bottom:10px;font-weight:700}
+.evidence-item{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:11px;line-height:1.5;border-bottom:1px solid var(--border)}
+.evidence-item:last-child{border-bottom:none}
+.evidence-icon{font-size:12px;flex-shrink:0;margin-top:1px}
+.evidence-text{flex:1}
+.evidence-tag{font-size:8px;font-family:var(--font);padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8}
+.tag-leading{background:rgba(0,212,170,0.15);color:#00d4aa}
+.tag-coincident{background:rgba(77,171,247,0.15);color:#4dabf7}
+.tag-lagging{background:rgba(90,109,132,0.15);color:#5a6d84}
+/* Methodology */
+.method-section{margin-bottom:24px}
+.method-section h3{font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.method-section p,.method-section li{font-size:12px;line-height:1.8;color:var(--text)}
+.method-section ul{padding-left:18px;margin-top:6px}
+.method-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--font)}
+.method-table th{text-align:left;padding:6px 10px;background:var(--elevated);color:var(--dim);font-size:9px;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.method-table td{padding:6px 10px;border-bottom:1px solid var(--border)}
+.method-note{font-size:10px;color:var(--dim);margin-top:8px;font-style:italic;line-height:1.6}
+/* Coverage tooltip */
+.cov-detail{font-size:9px;color:var(--dim);font-family:var(--font);margin-top:4px;padding:4px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -84,6 +119,7 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
     <button class="tab" onclick="showTab('scenarios')">SCENARIOS</button>
     <button class="tab" onclick="showTab('trends')">TRENDS</button>
     <button class="tab" onclick="showTab('data')">DATA</button>
+    <button class="tab-muted" onclick="showTab('methodology')">ⓘ METHODOLOGY</button>
   </div>
   <div style="padding:10px 24px 0;font-size:9px;color:var(--dim);font-family:var(--font);display:flex;gap:16px">
     <span id="pipe-status">Pipeline: Checking...</span>
@@ -97,6 +133,7 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
   <div id="tab-scenarios" style="display:none"></div>
   <div id="tab-trends" style="display:none"></div>
   <div id="tab-data" style="display:none"></div>
+  <div id="tab-methodology" style="display:none"></div>
 </main>
 
 <footer>
@@ -110,6 +147,30 @@ const REGIME_COLORS = {expansion:'#00d4aa',late_cycle:'#f0b429',contraction:'#ff
 const REGIME_LABELS = {expansion:'EXPANSION',late_cycle:'LATE CYCLE',contraction:'CONTRACTION',recovery:'RECOVERY'};
 const DIM_LABELS = {demand_cycle:'DEMAND',supply_cycle:'SUPPLY',price_cycle:'PRICE',macro_regime:'MACRO',global_demand:'GLOBAL'};
 const SIG_COLORS = {bullish:'#00d4aa',bearish:'#ff6b6b',neutral:'#5a6d84'};
+
+// Indicator lead/lag classification for evidence
+const INDICATOR_TYPE = {
+  // Leading (2-18 months ahead)
+  'ISM_MFG':'leading','DGORDER':'leading','YIELD_CURVE':'leading','LEI':'leading',
+  'HOUSING':'leading','EQUIP_PROXY':'leading','HBM_PREMIUM':'leading',
+  // Coincident (real-time)
+  'INDPRO':'coincident','RETAIL':'coincident','SOX':'coincident',
+  'DRAM_PROXY':'coincident','NAND_PROXY':'coincident','CLAIMS':'coincident',
+  'CONSUMER_CONF':'coincident','FOMC':'coincident',
+  // Lagging (confirms past)
+  'GDP':'lagging','CPI':'lagging','PPI':'lagging','NFP':'lagging',
+  'TRADE':'lagging','WSTS':'lagging','PRODUCTIVITY':'lagging',
+  'HYPERSCALER_CAPEX':'lagging','CHINA_PMI':'coincident'
+};
+
+const DIM_WEIGHTS_RATIONALE = {
+  demand_cycle: {pct:'30%', why:'반도체 매출의 80% 이상이 수요 사이클에 직접 연동. 신규주문(DGORDER), ISM PMI, 빅테크 CapEx가 사이클 전환점의 가장 빠른 신호'},
+  supply_cycle: {pct:'20%', why:'공급 과잉/부족이 가격과 마진을 결정. 가동률 80% 이상에서 증설 투자 트리거, 장비 B/B ratio가 핵심'},
+  price_cycle: {pct:'20%', why:'DRAM/NAND 가격이 반도체 기업 실적에 직접 반영. 메모리 가격 상승/하락 사이클이 투자 수익률을 좌우'},
+  macro_regime: {pct:'20%', why:'금리·유동성 환경이 테크 밸류에이션의 할인율을 결정. 수익률곡선 역전은 12-18개월 후 경기침체를 선행'},
+  global_demand: {pct:'10%', why:'반도체는 글로벌 교역재. 중국이 최대 소비국(~35%)이나, 수출 규제로 직접 영향이 제한적이어서 비중 하향'}
+};
+
 let scoreData = null, scenarioData = null, statusData = null, charts = {};
 
 async function fetchJSON(url){
@@ -120,9 +181,10 @@ async function fetchJSON(url){
 function showTab(id){
   document.querySelectorAll('[id^=tab-]').forEach(e=>e.style.display='none');
   document.getElementById('tab-'+id).style.display='';
-  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab,.tab-muted').forEach(e=>e.classList.remove('active'));
   event.target.classList.add('active');
   if(id==='trends')renderTrends();
+  if(id==='methodology')renderMethodology();
 }
 
 function dimColor(s){return s>=60?'#00d4aa':s<40?'#ff6b6b':'#f0b429';}
@@ -150,6 +212,98 @@ async function refreshAll(){
   renderDataTab();
 }
 
+// ============================================================
+// CYCLE DIAGRAM (SVG-free, pure CSS)
+// ============================================================
+function renderCycleDiagram(regime, score){
+  const phases = [
+    {id:'expansion', label:'EXPANSION', range:'65-100', x:114, y:10, color:'#00d4aa'},
+    {id:'late_cycle', label:'LATE CYCLE', range:'50-65', x:216, y:114, color:'#f0b429'},
+    {id:'contraction', label:'CONTRACTION', range:'35-50', x:114, y:216, color:'#ff6b6b'},
+    {id:'recovery', label:'RECOVERY', range:'0-35↑', x:10, y:114, color:'#4dabf7'},
+  ];
+  // Arrow positions between phases (clockwise)
+  let h = '<div class="cycle-diagram">';
+  // Center label
+  h += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;text-align:center">`;
+  h += `<div style="font-size:22px;font-weight:700;font-family:var(--font);color:${REGIME_COLORS[regime]||'#5a6d84'}">${score?.toFixed(0)||'--'}</div>`;
+  h += `<div style="font-size:7px;letter-spacing:1px;color:var(--dim);font-family:var(--font)">SCORE</div>`;
+  h += `</div>`;
+  // Arrows (clockwise: ↓ → ↑ ←)
+  const arrows = [
+    {x:185,y:60,r:'45deg',c:'#1c2638'},{x:185,y:185,r:'135deg',c:'#1c2638'},
+    {x:60,y:185,r:'225deg',c:'#1c2638'},{x:60,y:60,r:'315deg',c:'#1c2638'}
+  ];
+  arrows.forEach(a=>{
+    h+=`<div style="position:absolute;left:${a.x}px;top:${a.y}px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid ${a.c};transform:rotate(${a.r});z-index:1"></div>`;
+  });
+  phases.forEach(p=>{
+    const isActive = regime===p.id;
+    h += `<div class="cycle-phase ${isActive?'active':''}" style="left:${p.x}px;top:${p.y}px;${isActive?'border-color:'+p.color+';background:'+p.color+'15':'background:var(--surface)'}">`;
+    h += `<div class="ph-label" style="color:${p.color}">${p.label}</div>`;
+    h += `<div class="ph-range">${p.range}</div>`;
+    h += `</div>`;
+  });
+  h += '</div>';
+  return h;
+}
+
+// ============================================================
+// CYCLE EVIDENCE
+// ============================================================
+function renderEvidence(scoreData){
+  if(!scoreData || !scoreData.dimensions) return '';
+  const d = scoreData.dimensions;
+  const regime = scoreData.regime;
+  // Collect all signals, sort by strength
+  const allSigs = [];
+  Object.entries(d).forEach(([dimName, dim])=>{
+    (dim.contributing_signals||[]).forEach(sig=>{
+      allSigs.push({...sig, dimName});
+    });
+  });
+  // Separate by type
+  const bulls = allSigs.filter(s=>s.signal_type==='bullish').sort((a,b)=>b.strength-a.strength);
+  const bears = allSigs.filter(s=>s.signal_type==='bearish').sort((a,b)=>b.strength-a.strength);
+  // Top evidence: strongest signals that drive the regime
+  const topEvidence = [...bulls.slice(0,3), ...bears.slice(0,3)].sort((a,b)=>b.strength-a.strength).slice(0,5);
+  // Leading indicator summary
+  const leadingSigs = allSigs.filter(s=>INDICATOR_TYPE[s.indicator_id]==='leading');
+  const leadBull = leadingSigs.filter(s=>s.signal_type==='bullish').length;
+  const leadBear = leadingSigs.filter(s=>s.signal_type==='bearish').length;
+  const leadNeutral = leadingSigs.filter(s=>s.signal_type==='neutral').length;
+
+  let h = '<div class="evidence-panel">';
+  h += '<div class="evidence-title">⚡ WHY THIS REGIME? — 핵심 판단 근거</div>';
+  // Leading indicator summary
+  h += `<div style="font-size:10px;color:var(--text);margin-bottom:10px;padding:8px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">`;
+  h += `<span style="color:var(--dim);font-family:var(--font)">선행지표 방향:</span> `;
+  h += `<span style="color:#00d4aa">▲ ${leadBull}</span> `;
+  h += `<span style="color:var(--dim)">● ${leadNeutral}</span> `;
+  h += `<span style="color:#ff6b6b">▼ ${leadBear}</span> `;
+  h += `<span style="color:var(--dim);margin-left:8px">— ${leadBull>leadBear?'선행지표 다수 긍정적 → 확장 시사':leadBear>leadBull?'선행지표 다수 부정적 → 수축 경고':'선행지표 혼조 → 전환기 가능성'}</span>`;
+  h += `</div>`;
+  // Top evidence items
+  topEvidence.forEach(sig=>{
+    const isBull = sig.signal_type==='bullish';
+    const icon = isBull ? '▲' : '▼';
+    const color = isBull ? '#00d4aa' : '#ff6b6b';
+    const indType = INDICATOR_TYPE[sig.indicator_id] || 'coincident';
+    const tagClass = indType==='leading'?'tag-leading':indType==='lagging'?'tag-lagging':'tag-coincident';
+    h += `<div class="evidence-item">`;
+    h += `<span class="evidence-icon" style="color:${color}">${icon}</span>`;
+    h += `<span style="font-family:var(--font);font-size:10px;width:100px;flex-shrink:0;color:${color}">${sig.indicator_id}</span>`;
+    h += `<span class="evidence-text">${sig.description||''}</span>`;
+    h += `<span class="evidence-tag ${tagClass}">${indType}</span>`;
+    h += `</div>`;
+  });
+  h += '</div>';
+  return h;
+}
+
+// ============================================================
+// OVERVIEW
+// ============================================================
 function renderOverview(){
   if(!scoreData){document.getElementById('tab-overview').innerHTML='<div class="loading">No data. Click REFRESH or run: python3 main.py collect</div>';return;}
   const s=scoreData, d=s.dimensions||{};
@@ -159,7 +313,7 @@ function renderOverview(){
   const rc=REGIME_COLORS[s.regime]||'#5a6d84';
 
   let h='';
-  
+
   if (s.trend_alert) {
       const isBull = s.trend_alert.includes('BOTTOM') || s.trend_alert.includes('ACCELERAT') || s.trend_alert.includes('DECOUP');
       const isBear = s.trend_alert.includes('WARNING') || s.trend_alert.includes('SLOWING');
@@ -168,14 +322,18 @@ function renderOverview(){
       h+=`<div class="alert-banner ${cls}"><div><span style="font-size:20px">${icon}</span></div><div><div style="font-weight:700;letter-spacing:1px;margin-bottom:4px">TREND ALERT (MoM Delta & Divergence)</div><div>${s.trend_alert}</div></div></div>`;
   }
 
+  // Cycle Evidence Panel
+  h += renderEvidence(scoreData);
+
   h+='<div class="grid3">';
-  // Left: Score
+  // Left: Score + Cycle Diagram
   h+='<div>';
   h+='<div class="card" style="text-align:center">';
   h+='<div class="card-title">SEMICONDUCTOR CYCLE SCORE</div>';
-  h+=`<div class="score-big" style="color:${rc}">${s.total_score?.toFixed(1)||'-'}</div>`;
+  // Cycle Diagram
+  h += renderCycleDiagram(s.regime, s.total_score);
   h+=`<div class="regime-label" style="color:${rc}">${REGIME_LABELS[s.regime]||'-'}</div>`;
-  h+=`<div style="font-size:10px;color:var(--dim);margin-top:10px;text-align:left;line-height:1.6">${s.regime_description||''}</div>`;
+  h+=`<div style="font-size:10px;color:var(--dim);margin-top:10px;text-align:left;line-height:1.6">${(s.regime_description||'').replace(/\[.*?\]\s*/,'')}</div>`;
   h+='</div>';
   // Actions
   h+='<div class="card" style="margin-top:12px">';
@@ -191,17 +349,26 @@ function renderOverview(){
   h+='<div class="card-title">DIMENSION BREAKDOWN</div>';
   Object.entries(d).forEach(([name,dim])=>{
     const c=dimColor(dim.score);
+    const availCount = (dim.contributing_signals||[]).length;
+    const totalIndicators = {demand_cycle:10,supply_cycle:3,price_cycle:4,macro_regime:5,global_demand:2}[name]||1;
     h+=`<div class="dim-row" onclick="toggleSub('sub-${name}')">`;
     h+=`<span class="dim-label">${DIM_LABELS[name]||name}</span>`;
     h+=`<div class="dim-bar"><div class="dim-fill" style="width:${dim.score}%;background:${c}"></div></div>`;
     h+=`<span class="dim-score" style="color:${c}">${dim.score?.toFixed(0)}</span>`;
     h+=`<span class="dim-weight">${Math.round((dim.weight||0)*100)}%</span>`;
     h+='</div>';
+    // Coverage detail
+    h+=`<div class="cov-detail" style="display:none" id="cov-${name}">`;
+    h+=`Coverage ${Math.round((dim.confidence||0)*100)}% — ${availCount}/${totalIndicators}개 지표에 유효 데이터 확보. `;
+    if(dim.confidence < 1) h+=`데이터 미확보 지표는 중립(50점) 처리됨.`;
+    h+=`</div>`;
     h+=`<div class="sub-signals" id="sub-${name}" style="display:none">`;
     (dim.contributing_signals||[]).forEach(sig=>{
       const sc=SIG_COLORS[sig.signal_type];
       const arrow=sig.signal_type==='bullish'?'&#9650;':sig.signal_type==='bearish'?'&#9660;':'&#9679;';
-      h+=`<div class="sub-sig"><span style="color:${sc}">${arrow}</span><span style="color:var(--dim);width:110px;display:inline-block">${sig.indicator_id}</span><span>${sig.description||''}</span></div>`;
+      const indType = INDICATOR_TYPE[sig.indicator_id]||'coincident';
+      const tagClass = indType==='leading'?'tag-leading':indType==='lagging'?'tag-lagging':'tag-coincident';
+      h+=`<div class="sub-sig"><span style="color:${sc}">${arrow}</span><span style="color:var(--dim);width:100px;display:inline-block">${sig.indicator_id}</span><span>${sig.description||''}</span><span class="evidence-tag ${tagClass}" style="margin-left:auto;flex-shrink:0">${indType}</span></div>`;
     });
     h+='</div>';
   });
@@ -240,20 +407,38 @@ function renderOverview(){
   }
 }
 
-function toggleSub(id){const e=document.getElementById(id);if(e)e.style.display=e.style.display==='none'?'':'none';}
+function toggleSub(id){
+  const e=document.getElementById(id);
+  if(e)e.style.display=e.style.display==='none'?'':'none';
+  // Also toggle coverage detail
+  const covId=id.replace('sub-','cov-');
+  const c=document.getElementById(covId);
+  if(c)c.style.display=c.style.display==='none'?'':'none';
+}
 
+// ============================================================
+// SIGNALS
+// ============================================================
 function renderSignals(){
   if(!scoreData)return;
   const d=scoreData.dimensions||{};
   let h='<div class="grid2">';
   Object.entries(d).forEach(([name,dim])=>{
     const c=dimColor(dim.score);
+    const availCount=(dim.contributing_signals||[]).length;
+    const totalIndicators={demand_cycle:10,supply_cycle:3,price_cycle:4,macro_regime:5,global_demand:2}[name]||1;
     h+='<div class="card">';
-    h+=`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><div style="font-size:9px;letter-spacing:2px;color:var(--dim);font-family:var(--font)">${DIM_LABELS[name]||name}</div><div style="font-size:24px;font-weight:700;color:${c};font-family:var(--font)">${dim.score?.toFixed(1)}</div></div><div style="text-align:right;font-size:10px;font-family:var(--font);color:var(--dim)"><div>Weight ${Math.round((dim.weight||0)*100)}%</div><div>Coverage ${Math.round((dim.confidence||0)*100)}%</div></div></div>`;
+    h+=`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><div style="font-size:9px;letter-spacing:2px;color:var(--dim);font-family:var(--font)">${DIM_LABELS[name]||name}</div><div style="font-size:24px;font-weight:700;color:${c};font-family:var(--font)">${dim.score?.toFixed(1)}</div></div><div style="text-align:right;font-size:10px;font-family:var(--font);color:var(--dim)"><div>Weight ${Math.round((dim.weight||0)*100)}%</div><div>Data ${availCount}/${totalIndicators} indicators</div><div>Coverage ${Math.round((dim.confidence||0)*100)}%</div></div></div>`;
+    // Coverage note
+    if(dim.confidence < 1){
+      h+=`<div style="font-size:9px;color:var(--warn);margin-bottom:8px;padding:4px 8px;background:rgba(240,180,41,0.08);border-radius:4px">⚠ ${totalIndicators-availCount}개 지표 데이터 미확보 → 중립(50점)으로 처리됨</div>`;
+    }
     (dim.contributing_signals||[]).forEach(sig=>{
       const sc=SIG_COLORS[sig.signal_type];
       const arrow=sig.signal_type==='bullish'?'&#9650;':sig.signal_type==='bearish'?'&#9660;':'&#9679;';
-      h+=`<div style="display:grid;grid-template-columns:14px 100px 1fr 40px;gap:6px;align-items:center;padding:6px 8px;margin-bottom:3px;border-radius:4px;background:${sc}08;border-left:2px solid ${sc}44;font-size:10px"><span style="color:${sc}">${arrow}</span><span style="font-family:var(--font)">${sig.indicator_id}</span><span style="color:var(--dim)">${sig.description||''}</span><span style="text-align:right;font-family:var(--font);color:${sc}">${sig.score?.toFixed(0)||''}</span></div>`;
+      const indType=INDICATOR_TYPE[sig.indicator_id]||'coincident';
+      const tagClass=indType==='leading'?'tag-leading':indType==='lagging'?'tag-lagging':'tag-coincident';
+      h+=`<div style="display:grid;grid-template-columns:14px 100px 1fr 50px 40px;gap:6px;align-items:center;padding:6px 8px;margin-bottom:3px;border-radius:4px;background:${sc}08;border-left:2px solid ${sc}44;font-size:10px"><span style="color:${sc}">${arrow}</span><span style="font-family:var(--font)">${sig.indicator_id}</span><span style="color:var(--dim)">${sig.description||''}</span><span class="evidence-tag ${tagClass}">${indType}</span><span style="text-align:right;font-family:var(--font);color:${sc}">${sig.score?.toFixed(0)||''}</span></div>`;
     });
     h+='</div>';
   });
@@ -261,28 +446,31 @@ function renderSignals(){
   document.getElementById('tab-signals').innerHTML=h;
 }
 
+// ============================================================
+// SCENARIOS (What-if, no PROB column)
+// ============================================================
 function renderScenarios(){
   if(!scenarioData)return;
   const base=scenarioData.base_score;
   let h='';
-  // Table
   h+='<div class="card">';
-  h+=`<div style="display:flex;justify-content:space-between;margin-bottom:16px"><div><div class="card-title">SCENARIO COMPARISON</div><div style="font-size:12px">Base Score: <span style="color:var(--accent);font-weight:700;font-family:var(--font)">${base}</span></div></div></div>`;
-  h+='<div class="sc-row sc-header"><span>SCENARIO</span><span style="text-align:right">PROB</span><span style="text-align:right">DELTA</span><span style="text-align:center">IMPACT</span><span style="text-align:right">SCORE</span><span style="text-align:right">REGIME</span></div>';
+  h+=`<div style="display:flex;justify-content:space-between;margin-bottom:8px"><div><div class="card-title">WHAT-IF SCENARIO ANALYSIS</div><div style="font-size:12px">Base Score: <span style="color:var(--accent);font-weight:700;font-family:var(--font)">${base}</span></div></div></div>`;
+  h+=`<div style="font-size:10px;color:var(--dim);margin-bottom:14px;line-height:1.6">각 시나리오는 "만약 이런 상황이 발생한다면" 현재 Composite Score에 미치는 영향을 계산한 것입니다. 실제 발생 확률은 현재 경제 상황에 따라 달라지므로 별도로 표시하지 않습니다.</div>`;
+  h+='<div class="sc-row sc-header"><span>SCENARIO</span><span style="text-align:right">DELTA</span><span style="text-align:center">IMPACT</span><span style="text-align:right">SCORE</span><span style="text-align:right">REGIME</span></div>';
   (scenarioData.scenarios||[]).forEach(sc=>{
     const s=sc.scenario||{};
     const pos=sc.delta>0;
     const c=pos?'#00d4aa':'#ff6b6b';
     const bw=Math.min(Math.abs(sc.delta)/30*100,100);
     const rc=REGIME_COLORS[sc.adjusted_regime]||'var(--dim)';
-    h+=`<div class="sc-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name||''}</span><span style="text-align:right;color:var(--dim)">${Math.round((s.probability||0)*100)}%</span><span style="text-align:right;color:${c};font-weight:600">${sc.delta>0?'+':''}${sc.delta?.toFixed(1)}</span><div style="height:4px;background:var(--border);border-radius:2px;position:relative"><div style="position:absolute;height:100%;border-radius:2px;background:${c};${pos?'left:50%;width:'+bw/2+'%':'right:50%;width:'+bw/2+'%'}"></div><div style="position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--dim)"></div></div><span style="text-align:right">${sc.adjusted_score?.toFixed(1)}</span><span style="text-align:right;color:${rc};font-size:9px">${REGIME_LABELS[sc.adjusted_regime]||''}${sc.regime_changed?' &#9888;':''}</span></div>`;
+    h+=`<div class="sc-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.description||''}">${s.name||''}</span><span style="text-align:right;color:${c};font-weight:600">${sc.delta>0?'+':''}${sc.delta?.toFixed(1)}</span><div style="height:4px;background:var(--border);border-radius:2px;position:relative"><div style="position:absolute;height:100%;border-radius:2px;background:${c};${pos?'left:50%;width:'+bw/2+'%':'right:50%;width:'+bw/2+'%'}"></div><div style="position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--dim)"></div></div><span style="text-align:right">${sc.adjusted_score?.toFixed(1)}</span><span style="text-align:right;color:${rc};font-size:9px">${REGIME_LABELS[sc.adjusted_regime]||''}${sc.regime_changed?' &#9888;':''}</span></div>`;
   });
   h+='</div>';
 
-  // Impact chart
+  // Chart
   h+='<div class="card" style="margin-top:16px"><div class="card-title">SCORE IMPACT BY SCENARIO</div><div class="chart-wrap"><canvas id="scenarioChart"></canvas></div></div>';
 
-  // Regime zones
+  // Regime zones with explanation
   const curRegime=scoreData?.regime;
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">';
   [{r:'expansion',range:'65-100',desc:'반도체 비중 확대, AI/HBM 집중'},{r:'late_cycle',range:'50-65',desc:'선별적 유지, 차익실현 준비'},{r:'contraction',range:'35-50',desc:'비중 축소, 바닥 모니터링'},{r:'recovery',range:'0-35↑',desc:'바닥 매수 시작, 장비/소재 선행'}].forEach(z=>{
@@ -307,6 +495,9 @@ function renderScenarios(){
   }
 }
 
+// ============================================================
+// TRENDS
+// ============================================================
 async function renderTrends(){
   const history=await fetchJSON('/api/score/history?days=180');
   let h='<div class="card"><div class="card-title">COMPOSITE SCORE TREND</div><div class="chart-wrap" style="height:280px"><canvas id="trendChart"></canvas></div></div>';
@@ -330,10 +521,13 @@ async function renderTrends(){
         options:{scales:{x:{grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:8},maxTicksLimit:10}},y:{min:20,max:90,grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:9}}}},plugins:{legend:{labels:{color:'#5a6d84',font:{size:9}}}},responsive:true,maintainAspectRatio:false}});
     }
   } else {
-    document.getElementById('tab-trends').innerHTML='<div class="card"><div class="loading">Score history가 아직 없습니다. python3 main.py score 를 여러 날에 걸쳐 실행하면 축적됩니다.</div></div>';
+    document.getElementById('tab-trends').innerHTML='<div class="card"><div class="loading">Score history가 아직 없습니다. 데이터가 매일 자동 수집되면 여기에 추세가 축적됩니다.</div></div>';
   }
 }
 
+// ============================================================
+// DATA TAB
+// ============================================================
 function renderDataTab(){
   let h='<div class="export-bar">';
   h+='<button class="btn" onclick="exportCSV(\'signals\')">Signals CSV</button>';
@@ -341,7 +535,6 @@ function renderDataTab(){
   h+='<button class="btn" onclick="exportCSV(\'indicators\')">Indicators CSV</button>';
   h+='<button class="btn" onclick="exportXLSX()">Full Export XLSX</button>';
   h+='</div>';
-  // Status
   h+='<div class="card" id="data-status"><div class="loading">Loading status...</div></div>';
   document.getElementById('tab-data').innerHTML=h;
 
@@ -355,6 +548,73 @@ function renderDataTab(){
 
 function exportCSV(type){window.open(`/api/export/${type}.csv`,'_blank');}
 function exportXLSX(){window.open('/api/export/full.xlsx','_blank');}
+
+// ============================================================
+// METHODOLOGY TAB
+// ============================================================
+function renderMethodology(){
+  let h='<div style="max-width:900px">';
+
+  // Section 1: Overview
+  h+='<div class="method-section"><h3>📐 모델 개요</h3>';
+  h+='<p>Semi-Intel Composite Score는 24개 경제·섹터 지표를 5개 차원(Dimension)으로 분류하고, 각 차원의 가중평균으로 0~100점의 반도체 사이클 점수를 산출합니다. 이 점수를 기반으로 현재 사이클 단계(Regime)를 판별하고 투자 액션을 제안합니다.</p>';
+  h+='<p style="margin-top:8px"><strong>이론적 근거:</strong> Bernard Baumohl의 "The Secrets of Economic Indicators" 16개 핵심 지표 + 반도체 섹터 특화 8개 지표를 결합한 프레임워크입니다.</p>';
+  h+='</div>';
+
+  // Section 2: Dimension Weights
+  h+='<div class="method-section"><h3>⚖️ 차원별 비중 (Weight) 근거</h3>';
+  h+='<table class="method-table"><tr><th>DIMENSION</th><th>WEIGHT</th><th>근거</th></tr>';
+  Object.entries(DIM_WEIGHTS_RATIONALE).forEach(([k,v])=>{
+    h+=`<tr><td style="color:var(--accent);font-weight:600">${DIM_LABELS[k]||k}</td><td style="text-align:center">${v.pct}</td><td style="color:var(--text)">${v.why}</td></tr>`;
+  });
+  h+='</table>';
+  h+='<div class="method-note">※ 비중은 반도체 산업의 수요-공급-가격 메커니즘 분석에 기반하여 설정되었습니다. 향후 사이클 단계별 동적 비중 조정을 검토 중입니다.</div>';
+  h+='</div>';
+
+  // Section 3: Indicator Classification
+  h+='<div class="method-section"><h3>📊 지표 분류: 선행 / 동행 / 후행</h3>';
+  h+='<p>지표의 시간적 특성에 따라 분류합니다. 선행지표는 미래 사이클 전환을 앞서 감지하고, 후행지표는 현재 상태를 확인합니다.</p>';
+  h+='<table class="method-table"><tr><th>유형</th><th>Lead Time</th><th>지표</th><th>역할</th></tr>';
+  h+='<tr><td><span class="evidence-tag tag-leading">LEADING</span></td><td>2~18개월</td><td>ISM 신규주문, 수율곡선, LEI, 내구재주문, 건축허가, 장비주Proxy, HBM Premium</td><td>사이클 전환 조기 감지</td></tr>';
+  h+='<tr><td><span class="evidence-tag tag-coincident">COINCIDENT</span></td><td>실시간</td><td>산업생산, SOX지수, DRAM/NAND Proxy, 소매판매, 실업수당, 소비자심리</td><td>현재 경기 상태 반영</td></tr>';
+  h+='<tr><td><span class="evidence-tag tag-lagging">LAGGING</span></td><td>확인용</td><td>GDP, CPI, PPI, 고용, 무역수지, WSTS, 생산성, CapEx</td><td>선행 신호의 사후 검증</td></tr>';
+  h+='</table>';
+  h+='<div class="method-note">※ 현재 모델은 선행·동행·후행을 동일하게 합산합니다. 이는 "현재 상태 진단"에는 정확하지만, "미래 예측"을 위해서는 선행지표 가중 확대가 필요합니다. 이 개선은 향후 모델 업데이트에서 반영할 예정입니다.</div>';
+  h+='</div>';
+
+  // Section 4: Score Calculation
+  h+='<div class="method-section"><h3>🧮 점수 산출 방식</h3>';
+  h+='<p><strong>1단계 — Signal 생성:</strong> 각 지표의 시계열 데이터에서 추세, 임계값, 이동평균 교차 등을 분석하여 Bullish(강세) / Bearish(약세) / Neutral(중립) 시그널을 생성합니다.</p>';
+  h+='<p><strong>2단계 — 개별 점수 변환:</strong> Bullish = 50 + (strength × 50), Bearish = 50 − (strength × 50), Neutral = 50</p>';
+  h+='<p><strong>3단계 — 차원 점수:</strong> 해당 차원 내 지표별 점수를 indicator_weight 기준 가중평균으로 합산합니다.</p>';
+  h+='<p><strong>4단계 — 총점:</strong> 5개 차원 점수를 dimension_weight(30/20/20/20/10%) 기준 가중평균합니다.</p>';
+  h+='<p><strong>5단계 — Regime 판별:</strong> 점수 구간(65+, 50-65, 35-50, 0-35) + 차원 간 교차검증으로 최종 사이클 단계를 결정합니다.</p>';
+  h+='</div>';
+
+  // Section 5: Coverage
+  h+='<div class="method-section"><h3>📡 Coverage (데이터 커버리지)</h3>';
+  h+='<p><strong>Coverage = 유효 데이터 지표 수 ÷ 해당 차원 전체 지표 수</strong></p>';
+  h+='<ul>';
+  h+='<li>Coverage 100% = 모든 지표에 최신 데이터가 확보된 상태</li>';
+  h+='<li>Coverage < 100% = 일부 지표의 데이터가 누락됨 (수동 입력 필요, 발표 전, 주기 차이 등)</li>';
+  h+='<li><strong>부재 처리 방식:</strong> 데이터가 없는 지표는 중립(50점)으로 처리됩니다. 이는 "모르면 중간"이라는 보수적 접근이며, 결과적으로 점수를 중앙으로 수렴시키는 편향이 있습니다.</li>';
+  h+='<li><strong>신뢰도 영향:</strong> Coverage가 낮은 차원은 결과의 신뢰도를 낮춥니다. 전체 Coverage 70% 이상이면 High, 40~70%이면 Medium, 40% 미만이면 Low로 표시합니다.</li>';
+  h+='</ul>';
+  h+='</div>';
+
+  // Section 6: Limitations
+  h+='<div class="method-section"><h3>⚠️ 한계 및 유의사항</h3>';
+  h+='<ul>';
+  h+='<li><strong>예측 vs 진단:</strong> 현재 모델은 선행·동행·후행 지표를 함께 합산하므로, "현재 사이클의 어디에 있는가"를 진단하는 데 더 적합합니다. 순수한 미래 예측을 위해서는 선행지표만 분리 분석하는 것이 바람직합니다.</li>';
+  h+='<li><strong>고정 비중:</strong> 사이클 단계에 따라 중요한 지표가 달라지지만(예: Recovery기에는 선행지표가, Late Cycle기에는 경고지표가 더 중요), 현재 비중은 고정되어 있습니다.</li>';
+  h+='<li><strong>시나리오 유의:</strong> What-if 시나리오의 Delta는 정성적 추정치이며, 정밀한 시뮬레이션 결과가 아닙니다.</li>';
+  h+='<li><strong>데이터 지연:</strong> FRED 데이터는 발표 후 수 시간 내 반영되나, WSTS·CapEx 등은 수주~수개월 후행합니다.</li>';
+  h+='</ul>';
+  h+='</div>';
+
+  h+='</div>';
+  document.getElementById('tab-methodology').innerHTML=h;
+}
 
 // Init
 refreshAll();
