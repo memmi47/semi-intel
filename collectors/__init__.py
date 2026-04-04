@@ -1,0 +1,3 @@
+from collectors.fred_collector import FredCollector
+from collectors.yahoo_collector import YahooCollector
+from collectors.manual_collector import ManualCollector

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Semi-Intel Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#06080d;--surface:#0c1018;--elevated:#121822;--border:#1c2638;--text:#c8d6e5;--dim:#5a6d84;--muted:#3a4a5e;--accent:#00d4aa;--warn:#f0b429;--blue:#4dabf7;--red:#ff6b6b;--font:'Menlo','Consolas',monospace;--sans:-apple-system,'Segoe UI',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+header{background:linear-gradient(180deg,#0c1220,var(--bg));border-bottom:1px solid var(--border);padding:14px 24px}
+.hdr-top{display:flex;justify-content:space-between;align-items:center}
+.hdr-title{font-size:9px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;font-family:var(--font)}
+.hdr-name{font-size:18px;font-weight:700;margin-top:2px}
+.hdr-stats{display:flex;gap:20px;font-size:10px;font-family:var(--font)}
+.hdr-stats div{text-align:right}
+.hdr-stats .label{color:var(--dim)}
+.tabs{display:flex;gap:2px;margin-top:14px}
+.tab{padding:7px 18px;font-size:11px;font-family:var(--font);letter-spacing:1px;cursor:pointer;background:none;color:var(--dim);border:none;border-bottom:2px solid transparent}
+.tab.active{color:var(--accent);background:var(--elevated);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--text)}
+main{padding:20px 24px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:280px 1fr 280px;gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px}
+.card-title{font-size:9px;letter-spacing:2px;color:var(--dim);font-family:var(--font);margin-bottom:12px}
+.score-big{font-size:48px;font-weight:700;font-family:var(--font);text-align:center}
+.regime-label{text-align:center;font-size:11px;font-family:var(--font);letter-spacing:2px;margin-top:4px}
+.dim-row{display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer}
+.dim-label{width:60px;font-size:10px;color:var(--dim);font-family:var(--font)}
+.dim-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.dim-fill{height:100%;border-radius:3px;transition:width 0.8s}
+.dim-score{width:36px;text-align:right;font-size:12px;font-weight:600;font-family:var(--font)}
+.dim-weight{width:30px;text-align:right;font-size:9px;color:var(--dim)}
+.sig-card{padding:8px 10px;margin-bottom:4px;border-radius:0 4px 4px 0;font-size:10px}
+.sig-card.bull{background:rgba(0,212,170,0.06);border-left:2px solid rgba(0,212,170,0.3)}
+.sig-card.bear{background:rgba(255,107,107,0.06);border-left:2px solid rgba(255,107,107,0.3)}
+.sig-id{font-weight:600;font-family:var(--font)}
+.sig-desc{color:var(--text);margin-top:3px;line-height:1.5}
+.sig-str{font-size:9px;color:var(--dim);font-family:var(--font)}
+.action-item{font-size:11px;padding:6px 0;border-bottom:1px solid var(--border);line-height:1.5}
+.action-item:last-child{border-bottom:none}
+.action-arrow{color:var(--accent);margin-right:6px}
+.sc-row{display:grid;grid-template-columns:140px 45px 55px 1fr 55px 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--font)}
+.sc-header{color:var(--dim);font-size:9px}
+.regime-box{padding:14px;border-radius:8px;border-top:3px solid}
+.regime-box h4{font-size:11px;font-family:var(--font)}
+.regime-box .range{font-size:9px;color:var(--dim);font-family:var(--font);margin-top:2px}
+.regime-box .desc{font-size:10px;margin-top:8px;line-height:1.5}
+.regime-box.current{opacity:1}
+.regime-box.inactive{opacity:0.4}
+.export-bar{display:flex;gap:8px;margin-bottom:16px}
+.btn{padding:6px 14px;font-size:11px;font-family:var(--font);cursor:pointer;border-radius:4px;border:1px solid var(--border);background:var(--elevated);color:var(--accent)}
+.btn:hover{background:var(--border)}
+.btn-refresh{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.loading{text-align:center;padding:40px;color:var(--dim);font-family:var(--font)}
+footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:var(--muted);font-family:var(--font);display:flex;justify-content:space-between}
+.chart-wrap{position:relative;height:200px}
+.sub-signals{margin-left:70px;margin-bottom:8px;font-size:10px}
+.sub-sig{display:flex;gap:8px;padding:2px 0;border-left:2px solid var(--border);padding-left:8px;margin-bottom:2px}
+.alert-banner{background:rgba(240,180,41,0.15);border:1px solid rgba(240,180,41,0.5);border-left:4px solid var(--warn);padding:12px;border-radius:6px;margin-bottom:16px;font-family:var(--font);font-size:11px;color:var(--text);display:flex;align-items:center;gap:12px}
+.alert-banner.bull{background:rgba(0,212,170,0.15);border-color:rgba(0,212,170,0.5);border-left-color:var(--accent)}
+.alert-banner.bear{background:rgba(255,107,107,0.15);border-color:rgba(255,107,107,0.5);border-left-color:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-top">
+    <div>
+      <div class="hdr-title">Semi-Intel v3.1</div>
+      <div class="hdr-name">Semiconductor Cycle Command Center</div>
+    </div>
+    <div class="hdr-stats">
+      <div><div class="label">CONFIDENCE</div><div id="hdr-conf">-</div></div>
+      <div><div class="label">COVERAGE</div><div id="hdr-cov">-</div></div>
+      <div><div class="label">SIGNALS</div><div id="hdr-sig">-</div></div>
+      <button class="btn btn-refresh" onclick="refreshAll()">REFRESH</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview')">OVERVIEW</button>
+    <button class="tab" onclick="showTab('signals')">SIGNALS</button>
+    <button class="tab" onclick="showTab('scenarios')">SCENARIOS</button>
+    <button class="tab" onclick="showTab('trends')">TRENDS</button>
+    <button class="tab" onclick="showTab('data')">DATA</button>
+  </div>
+  <div style="padding:10px 24px 0;font-size:9px;color:var(--dim);font-family:var(--font);display:flex;gap:16px">
+    <span id="pipe-status">Pipeline: Checking...</span>
+    <span id="pipe-next">Next Run: -</span>
+  </div>
+</header>
+
+<main>
+  <div id="tab-overview"></div>
+  <div id="tab-signals" style="display:none"></div>
+  <div id="tab-scenarios" style="display:none"></div>
+  <div id="tab-trends" style="display:none"></div>
+  <div id="tab-data" style="display:none"></div>
+</main>
+
+<footer>
+  <span>Semi-Intel v3.1 — Based on "The Secrets of Economic Indicators" + Sector Extensions</span>
+  <span id="last-update">-</span>
+</footer>
+
+<script>
+const API = '';
+const REGIME_COLORS = {expansion:'#00d4aa',late_cycle:'#f0b429',contraction:'#ff6b6b',recovery:'#4dabf7'};
+const REGIME_LABELS = {expansion:'EXPANSION',late_cycle:'LATE CYCLE',contraction:'CONTRACTION',recovery:'RECOVERY'};
+const DIM_LABELS = {demand_cycle:'DEMAND',supply_cycle:'SUPPLY',price_cycle:'PRICE',macro_regime:'MACRO',global_demand:'GLOBAL'};
+const SIG_COLORS = {bullish:'#00d4aa',bearish:'#ff6b6b',neutral:'#5a6d84'};
+let scoreData = null, scenarioData = null, statusData = null, charts = {};
+
+async function fetchJSON(url){
+  try{const r=await fetch(API+url);if(!r.ok)throw new Error(r.status);return await r.json();}
+  catch(e){console.error('Fetch error:',url,e);return null;}
+}
+
+function showTab(id){
+  document.querySelectorAll('[id^=tab-]').forEach(e=>e.style.display='none');
+  document.getElementById('tab-'+id).style.display='';
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  event.target.classList.add('active');
+  if(id==='trends')renderTrends();
+}
+
+function dimColor(s){return s>=60?'#00d4aa':s<40?'#ff6b6b':'#f0b429';}
+
+async function refreshAll(){
+  document.getElementById('tab-overview').innerHTML='<div class="loading">Loading...</div>';
+  scoreData = await fetchJSON('/api/score');
+  scenarioData = await fetchJSON('/api/scenarios/compare');
+  statusData = await fetchJSON('/api/status');
+  if(scoreData){
+    document.getElementById('hdr-conf').textContent=scoreData.confidence_level?.toUpperCase()||'-';
+    document.getElementById('hdr-conf').style.color=scoreData.confidence_level==='high'?'#00d4aa':scoreData.confidence_level==='medium'?'#f0b429':'#ff6b6b';
+    document.getElementById('hdr-cov').textContent=Math.round((scoreData.data_coverage||0)*100)+'%';
+    document.getElementById('hdr-sig').textContent=scoreData.signal_count||'0';
+    document.getElementById('last-update').textContent='Updated: '+new Date().toLocaleString('ko');
+  }
+  if(statusData && statusData.pipeline){
+    const p = statusData.pipeline;
+    document.getElementById('pipe-status').innerHTML = `Auto-Pipeline: <span style="color:${p.is_running?'#00d4aa':'#ff6b6b'}">${p.is_running?'ACTIVE':'STOPPED'}</span> (Last: ${p.last_run_time?p.last_run_time.substring(0,16):'Never'})`;
+    document.getElementById('pipe-next').textContent = `Next Run: ${p.next_run_time?p.next_run_time.substring(0,16):'-'}`;
+  }
+  renderOverview();
+  renderSignals();
+  renderScenarios();
+  renderDataTab();
+}
+
+function renderOverview(){
+  if(!scoreData){document.getElementById('tab-overview').innerHTML='<div class="loading">No data. Click REFRESH or run: python3 main.py collect</div>';return;}
+  const s=scoreData, d=s.dimensions||{};
+  const allSigs=Object.values(d).flatMap(dim=>dim.contributing_signals||[]);
+  const bulls=allSigs.filter(x=>x.signal_type==='bullish').sort((a,b)=>b.strength-a.strength);
+  const bears=allSigs.filter(x=>x.signal_type==='bearish').sort((a,b)=>b.strength-a.strength);
+  const rc=REGIME_COLORS[s.regime]||'#5a6d84';
+
+  let h='';
+  
+  if (s.trend_alert) {
+      const isBull = s.trend_alert.includes('BOTTOM') || s.trend_alert.includes('ACCELERAT') || s.trend_alert.includes('DECOUP');
+      const isBear = s.trend_alert.includes('WARNING') || s.trend_alert.includes('SLOWING');
+      const cls = isBull ? 'bull' : isBear ? 'bear' : '';
+      const icon = isBull ? '🚀' : isBear ? '⚠️' : '💡';
+      h+=`<div class="alert-banner ${cls}"><div><span style="font-size:20px">${icon}</span></div><div><div style="font-weight:700;letter-spacing:1px;margin-bottom:4px">TREND ALERT (MoM Delta & Divergence)</div><div>${s.trend_alert}</div></div></div>`;
+  }
+
+  h+='<div class="grid3">';
+  // Left: Score
+  h+='<div>';
+  h+='<div class="card" style="text-align:center">';
+  h+='<div class="card-title">SEMICONDUCTOR CYCLE SCORE</div>';
+  h+=`<div class="score-big" style="color:${rc}">${s.total_score?.toFixed(1)||'-'}</div>`;
+  h+=`<div class="regime-label" style="color:${rc}">${REGIME_LABELS[s.regime]||'-'}</div>`;
+  h+=`<div style="font-size:10px;color:var(--dim);margin-top:10px;text-align:left;line-height:1.6">${s.regime_description||''}</div>`;
+  h+='</div>';
+  // Actions
+  h+='<div class="card" style="margin-top:12px">';
+  h+='<div class="card-title" style="color:#f0b429">INVESTMENT ACTION</div>';
+  (s.investment_action||'').split('|').forEach(a=>{
+    h+=`<div class="action-item"><span class="action-arrow">&rarr;</span>${a.trim()}</div>`;
+  });
+  h+='</div></div>';
+
+  // Center: Dimensions
+  h+='<div>';
+  h+='<div class="card">';
+  h+='<div class="card-title">DIMENSION BREAKDOWN</div>';
+  Object.entries(d).forEach(([name,dim])=>{
+    const c=dimColor(dim.score);
+    h+=`<div class="dim-row" onclick="toggleSub('sub-${name}')">`;
+    h+=`<span class="dim-label">${DIM_LABELS[name]||name}</span>`;
+    h+=`<div class="dim-bar"><div class="dim-fill" style="width:${dim.score}%;background:${c}"></div></div>`;
+    h+=`<span class="dim-score" style="color:${c}">${dim.score?.toFixed(0)}</span>`;
+    h+=`<span class="dim-weight">${Math.round((dim.weight||0)*100)}%</span>`;
+    h+='</div>';
+    h+=`<div class="sub-signals" id="sub-${name}" style="display:none">`;
+    (dim.contributing_signals||[]).forEach(sig=>{
+      const sc=SIG_COLORS[sig.signal_type];
+      const arrow=sig.signal_type==='bullish'?'&#9650;':sig.signal_type==='bearish'?'&#9660;':'&#9679;';
+      h+=`<div class="sub-sig"><span style="color:${sc}">${arrow}</span><span style="color:var(--dim);width:110px;display:inline-block">${sig.indicator_id}</span><span>${sig.description||''}</span></div>`;
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  // Radar chart
+  h+='<div class="card" style="margin-top:12px"><div class="card-title">DIMENSIONAL PROFILE</div><div class="chart-wrap"><canvas id="radarChart"></canvas></div></div>';
+  h+='</div>';
+
+  // Right: Signals
+  h+='<div>';
+  h+=`<div class="card"><div class="card-title" style="color:#00d4aa">&#9650; BULLISH (${bulls.length})</div>`;
+  bulls.slice(0,5).forEach(sig=>{
+    h+=`<div class="sig-card bull"><div style="display:flex;justify-content:space-between"><span class="sig-id" style="color:#00d4aa">${sig.indicator_id}</span><span class="sig-str">${Math.round(sig.strength*100)}%</span></div><div class="sig-desc">${sig.description||''}</div></div>`;
+  });
+  h+='</div>';
+  h+=`<div class="card" style="margin-top:12px"><div class="card-title" style="color:#ff6b6b">&#9660; BEARISH (${bears.length})</div>`;
+  bears.slice(0,5).forEach(sig=>{
+    h+=`<div class="sig-card bear"><div style="display:flex;justify-content:space-between"><span class="sig-id" style="color:#ff6b6b">${sig.indicator_id}</span><span class="sig-str">${Math.round(sig.strength*100)}%</span></div><div class="sig-desc">${sig.description||''}</div></div>`;
+  });
+  h+='</div></div>';
+  h+='</div>';
+
+  document.getElementById('tab-overview').innerHTML=h;
+
+  // Radar
+  const dims=Object.entries(d);
+  if(dims.length>0){
+    const ctx=document.getElementById('radarChart');
+    if(ctx){
+      if(charts.radar)charts.radar.destroy();
+      charts.radar=new Chart(ctx,{type:'radar',data:{
+        labels:dims.map(([k])=>DIM_LABELS[k]||k),
+        datasets:[{data:dims.map(([,v])=>v.score),backgroundColor:'rgba(0,212,170,0.15)',borderColor:'#00d4aa',borderWidth:2,pointBackgroundColor:'#00d4aa'}]
+      },options:{scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'#1c2638'},angleLines:{color:'#1c2638'}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});
+    }
+  }
+}
+
+function toggleSub(id){const e=document.getElementById(id);if(e)e.style.display=e.style.display==='none'?'':'none';}
+
+function renderSignals(){
+  if(!scoreData)return;
+  const d=scoreData.dimensions||{};
+  let h='<div class="grid2">';
+  Object.entries(d).forEach(([name,dim])=>{
+    const c=dimColor(dim.score);
+    h+='<div class="card">';
+    h+=`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><div style="font-size:9px;letter-spacing:2px;color:var(--dim);font-family:var(--font)">${DIM_LABELS[name]||name}</div><div style="font-size:24px;font-weight:700;color:${c};font-family:var(--font)">${dim.score?.toFixed(1)}</div></div><div style="text-align:right;font-size:10px;font-family:var(--font);color:var(--dim)"><div>Weight ${Math.round((dim.weight||0)*100)}%</div><div>Coverage ${Math.round((dim.confidence||0)*100)}%</div></div></div>`;
+    (dim.contributing_signals||[]).forEach(sig=>{
+      const sc=SIG_COLORS[sig.signal_type];
+      const arrow=sig.signal_type==='bullish'?'&#9650;':sig.signal_type==='bearish'?'&#9660;':'&#9679;';
+      h+=`<div style="display:grid;grid-template-columns:14px 100px 1fr 40px;gap:6px;align-items:center;padding:6px 8px;margin-bottom:3px;border-radius:4px;background:${sc}08;border-left:2px solid ${sc}44;font-size:10px"><span style="color:${sc}">${arrow}</span><span style="font-family:var(--font)">${sig.indicator_id}</span><span style="color:var(--dim)">${sig.description||''}</span><span style="text-align:right;font-family:var(--font);color:${sc}">${sig.score?.toFixed(0)||''}</span></div>`;
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  document.getElementById('tab-signals').innerHTML=h;
+}
+
+function renderScenarios(){
+  if(!scenarioData)return;
+  const base=scenarioData.base_score;
+  let h='';
+  // Table
+  h+='<div class="card">';
+  h+=`<div style="display:flex;justify-content:space-between;margin-bottom:16px"><div><div class="card-title">SCENARIO COMPARISON</div><div style="font-size:12px">Base Score: <span style="color:var(--accent);font-weight:700;font-family:var(--font)">${base}</span></div></div></div>`;
+  h+='<div class="sc-row sc-header"><span>SCENARIO</span><span style="text-align:right">PROB</span><span style="text-align:right">DELTA</span><span style="text-align:center">IMPACT</span><span style="text-align:right">SCORE</span><span style="text-align:right">REGIME</span></div>';
+  (scenarioData.scenarios||[]).forEach(sc=>{
+    const s=sc.scenario||{};
+    const pos=sc.delta>0;
+    const c=pos?'#00d4aa':'#ff6b6b';
+    const bw=Math.min(Math.abs(sc.delta)/30*100,100);
+    const rc=REGIME_COLORS[sc.adjusted_regime]||'var(--dim)';
+    h+=`<div class="sc-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name||''}</span><span style="text-align:right;color:var(--dim)">${Math.round((s.probability||0)*100)}%</span><span style="text-align:right;color:${c};font-weight:600">${sc.delta>0?'+':''}${sc.delta?.toFixed(1)}</span><div style="height:4px;background:var(--border);border-radius:2px;position:relative"><div style="position:absolute;height:100%;border-radius:2px;background:${c};${pos?'left:50%;width:'+bw/2+'%':'right:50%;width:'+bw/2+'%'}"></div><div style="position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--dim)"></div></div><span style="text-align:right">${sc.adjusted_score?.toFixed(1)}</span><span style="text-align:right;color:${rc};font-size:9px">${REGIME_LABELS[sc.adjusted_regime]||''}${sc.regime_changed?' &#9888;':''}</span></div>`;
+  });
+  h+='</div>';
+
+  // Impact chart
+  h+='<div class="card" style="margin-top:16px"><div class="card-title">SCORE IMPACT BY SCENARIO</div><div class="chart-wrap"><canvas id="scenarioChart"></canvas></div></div>';
+
+  // Regime zones
+  const curRegime=scoreData?.regime;
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">';
+  [{r:'expansion',range:'65-100',desc:'반도체 비중 확대, AI/HBM 집중'},{r:'late_cycle',range:'50-65',desc:'선별적 유지, 차익실현 준비'},{r:'contraction',range:'35-50',desc:'비중 축소, 바닥 모니터링'},{r:'recovery',range:'0-35↑',desc:'바닥 매수 시작, 장비/소재 선행'}].forEach(z=>{
+    const isCur=curRegime===z.r;
+    h+=`<div class="regime-box ${isCur?'current':'inactive'}" style="background:var(--surface);border:1px solid ${isCur?REGIME_COLORS[z.r]+'66':'var(--border)'};border-top-color:${REGIME_COLORS[z.r]}"><h4 style="color:${REGIME_COLORS[z.r]}">${REGIME_LABELS[z.r]}</h4><div class="range">${z.range}</div><div class="desc">${z.desc}</div></div>`;
+  });
+  h+='</div>';
+
+  document.getElementById('tab-scenarios').innerHTML=h;
+
+  // Bar chart
+  const scs=scenarioData.scenarios||[];
+  if(scs.length>0){
+    const ctx=document.getElementById('scenarioChart');
+    if(ctx){
+      if(charts.scenario)charts.scenario.destroy();
+      charts.scenario=new Chart(ctx,{type:'bar',data:{
+        labels:scs.map(s=>(s.scenario?.name||'').substring(0,14)),
+        datasets:[{data:scs.map(s=>s.delta),backgroundColor:scs.map(s=>s.delta>0?'rgba(0,212,170,0.7)':'rgba(255,107,107,0.7)'),borderRadius:4}]
+      },options:{indexAxis:'y',scales:{x:{grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:9}}},y:{grid:{display:false},ticks:{color:'#5a6d84',font:{size:10,family:'Menlo'}}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});
+    }
+  }
+}
+
+async function renderTrends(){
+  const history=await fetchJSON('/api/score/history?days=180');
+  let h='<div class="card"><div class="card-title">COMPOSITE SCORE TREND</div><div class="chart-wrap" style="height:280px"><canvas id="trendChart"></canvas></div></div>';
+  document.getElementById('tab-trends').innerHTML=h;
+
+  if(history?.history?.length>0){
+    const data=history.history;
+    const ctx=document.getElementById('trendChart');
+    if(ctx){
+      if(charts.trend)charts.trend.destroy();
+      const datasets=[
+        {label:'Total',data:data.map(d=>d.total_score),borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,0.1)',fill:true,tension:0.3,pointRadius:0},
+      ];
+      if(data[0].demand_score!=null){
+        datasets.push({label:'Demand',data:data.map(d=>d.demand_score),borderColor:'#00d4aa',borderDash:[4,4],tension:0.3,pointRadius:0,borderWidth:1});
+        datasets.push({label:'Supply',data:data.map(d=>d.supply_score),borderColor:'#4dabf7',borderDash:[4,4],tension:0.3,pointRadius:0,borderWidth:1});
+        datasets.push({label:'Price',data:data.map(d=>d.price_score),borderColor:'#f0b429',borderDash:[4,4],tension:0.3,pointRadius:0,borderWidth:1});
+        datasets.push({label:'Macro',data:data.map(d=>d.macro_score),borderColor:'#e64980',borderDash:[4,4],tension:0.3,pointRadius:0,borderWidth:1});
+      }
+      charts.trend=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date),datasets},
+        options:{scales:{x:{grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:8},maxTicksLimit:10}},y:{min:20,max:90,grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:9}}}},plugins:{legend:{labels:{color:'#5a6d84',font:{size:9}}}},responsive:true,maintainAspectRatio:false}});
+    }
+  } else {
+    document.getElementById('tab-trends').innerHTML='<div class="card"><div class="loading">Score history가 아직 없습니다. python3 main.py score 를 여러 날에 걸쳐 실행하면 축적됩니다.</div></div>';
+  }
+}
+
+function renderDataTab(){
+  let h='<div class="export-bar">';
+  h+='<button class="btn" onclick="exportCSV(\'signals\')">Signals CSV</button>';
+  h+='<button class="btn" onclick="exportCSV(\'score\')">Score CSV</button>';
+  h+='<button class="btn" onclick="exportCSV(\'indicators\')">Indicators CSV</button>';
+  h+='<button class="btn" onclick="exportXLSX()">Full Export XLSX</button>';
+  h+='</div>';
+  // Status
+  h+='<div class="card" id="data-status"><div class="loading">Loading status...</div></div>';
+  document.getElementById('tab-data').innerHTML=h;
+
+  fetchJSON('/api/status').then(st=>{
+    if(!st)return;
+    let sh='<div class="card-title">DATABASE STATUS</div>';
+    sh+=`<div style="font-size:12px;line-height:2">Total records: <b>${(st.total_records||0).toLocaleString()}</b><br>Active series: <b>${st.series_count||0}</b><br>Latest collection: <b>${st.latest_collection||'Never'}</b></div>`;
+    document.getElementById('data-status').innerHTML=sh;
+  });
+}
+
+function exportCSV(type){window.open(`/api/export/${type}.csv`,'_blank');}
+function exportXLSX(){window.open('/api/export/full.xlsx','_blank');}
+
+// Init
+refreshAll();
+</script>
+</body>
+</html>
