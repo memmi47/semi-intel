@@ -79,6 +79,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n  Semi-Intel Dashboard")
-    print("  http://localhost:8000\n")
-    uvicorn.run("api.server:app", host="0.0.0.0", port=8000, reload=True)
+    # Railway 등 클라우드 환경은 PORT 환경변수를 사용함
+    port = int(os.getenv("PORT", 8000))
+    print(f"\n  Semi-Intel Dashboard")
+    print(f"  Running on port: {port}\n")
+    uvicorn.run("api.server:app", host="0.0.0.0", port=port, reload=False)
