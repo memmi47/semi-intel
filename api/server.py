@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from loguru import logger
 
 load_dotenv()
 
@@ -47,7 +48,7 @@ async def lifespan(app: FastAPI):
     if stats.get("total_records", 0) == 0:
         logger.info("Empty database detected. Triggering initial data collection...")
         import threading
-        threading.Thread(target=app.state.pipeline.run_full_pipeline).start()
+        threading.Thread(target=app.state.pipeline.run_full_pipeline, daemon=True).start()
 
     yield
 

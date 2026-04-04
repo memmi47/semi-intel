@@ -249,7 +249,7 @@ def align_series(*series_list: pd.Series,
     """여러 시리즈의 날짜를 정렬 (빈도가 다른 시리즈 결합 시)"""
     df = pd.concat(series_list, axis=1)
     if method == "ffill":
-        df = df.fillna(method="ffill")
+        df = df.ffill()
     elif method == "interpolate":
         df = df.interpolate(method="time")
     return [df.iloc[:, i] for i in range(len(series_list))]
@@ -269,4 +269,4 @@ def resample_to_monthly(series: pd.Series, agg: str = "last") -> pd.Series:
 
 def fill_gaps(series: pd.Series, max_gap: int = 3) -> pd.Series:
     """최대 max_gap 기간까지 전방 채우기"""
-    return series.fillna(method="ffill", limit=max_gap)
+    return series.ffill(limit=max_gap)
