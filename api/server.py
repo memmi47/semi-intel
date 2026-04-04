@@ -37,6 +37,8 @@ async def lifespan(app: FastAPI):
     app.state.db.create_tables()
     app.state.db.sync_indicator_meta(ALL_INDICATORS)
 
+    # Initialize Automation Pipeline
+    from utils.automation import BackgroundPipeline
     app.state.pipeline = BackgroundPipeline(app.state.db)
     app.state.pipeline.start()
 
