@@ -657,7 +657,7 @@ class CompositeScoreCalculator:
                 "predictive_score": result.predictive_score,
                 "diagnostic_score": result.diagnostic_score,
                 "confirmation_score": result.confirmation_score,
-                "regime_probability": result.regime_probability,
+                "regime_probability": __import__("json").dumps(result.regime_probability) if result.regime_probability else None,
             }
             if existing:
                 for key, val in data.items():

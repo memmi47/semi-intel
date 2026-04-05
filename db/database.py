@@ -136,9 +136,38 @@ class DatabaseManager:
         logger.info(f"Database initialized: {db_type}")
 
     def create_tables(self):
-        """테이블 생성 (없으면 생성, 있으면 무시)"""
+        """테이블 생성 (없으면 생성, 있으면 무시) + v4.0 컬럼 마이그레이션"""
         Base.metadata.create_all(self.engine)
+        self._migrate_tables()
         logger.info("All tables created/verified")
+
+    def _migrate_tables(self):
+        """v4.0 신규 컬럼 추가 (ALTER TABLE — 없을 경우에만 실행, SQLite/PostgreSQL 모두 지원)"""
+        from sqlalchemy import inspect, text
+        migrations = [
+            ("composite_scores", "predictive_score",   "predictive_score FLOAT"),
+            ("composite_scores", "diagnostic_score",   "diagnostic_score FLOAT"),
+            ("composite_scores", "confirmation_score", "confirmation_score FLOAT"),
+            ("composite_scores", "regime_probability", "regime_probability TEXT"),  # JSON → TEXT (PG 호환)
+        ]
+        try:
+            inspector = inspect(self.engine)
+            with self.engine.connect() as conn:
+                for table, col, col_def in migrations:
+                    try:
+                        existing = [c["name"] for c in inspector.get_columns(table)]
+                    except Exception:
+                        existing = []
+                    if col not in existing:
+                        try:
+                            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_def}"))
+                            conn.commit()
+                            logger.info(f"Migration: ADD COLUMN {col} to {table}")
+                        except Exception as e:
+                            logger.warning(f"Migration skipped ({col}): {e}")
+        except Exception as e:
+            logger.warning(f"_migrate_tables: {e}")
+
 
     def get_session(self) -> Session:
         return self.SessionLocal()
