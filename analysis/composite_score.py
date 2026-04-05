@@ -602,42 +602,42 @@ class CompositeScoreCalculator:
         return regime, desc, action
 
     def _expansion_action(self, dims, predictive: float = 50.0) -> str:
-        parts = ["향후 6개월 반도체 주식 비중을 공격적으로 확대할 것"]
+        parts = ["반도체 주식 비중을 공격적으로 확대할 것"]
         demand = dims.get("demand_cycle")
         price = dims.get("price_cycle")
         if demand and any(s["indicator_id"] == "HYPERSCALER_CAPEX"
                          for s in demand.contributing_signals
                          if s.get("signal_type") == "bullish"):
-            parts.append("AI 및 CapEx 주도주(SK하이닉스 등) 집중 투자를 제안")
+            parts.append("AI/CapEx 주도주 집중 투자 환경임")
         if price and price.score > 65:
-            parts.append("메모리 가격 랠리 구간임. 순수 메모리 기업 비중 극대화 필요")
+            parts.append("메모리 가격 랠리 진입. 메모리 중심 비중 확대")
         if predictive < 60:
-            parts.append("선행지표 상승 탄력 둔화 조짐. 과도한 추격 매수는 자제할 것")
-        parts.append("가동률 85% 이상 도달 여부 및 장비 출하량 피크아웃 신호에 대한 지속적 모니터링을 요망")
-        return " | ".join(parts)
+            parts.append("선행지표 둔화 발생 시 과도한 추격 매수 자제 요망")
+        parts.append("장비 출하량 피크아웃 신호 여부 추적 요망")
+        return " | ".join(parts[:4])
 
     def _late_cycle_action(self, dims) -> str:
         return " | ".join([
-            "향후 6개월 반도체 주식 비중을 선별적으로 축소할 준비가 필요함",
-            "밸류에이션이 우수한 주도주 위주로 차익실현에 나설 것을 제안",
-            "동행지표는 양호하나 선행지표 악화가 가시화되었으므로 방어적 스탠스로 전환할 것",
-            "신용 스프레드(HY Spread) 급등이나 실업률 기준선(Sahm Rule) 도달 시 즉각 전면 차익실현 및 현금 확보 요망",
+            "향후 6개월 반도체 초과수익 모멘텀 둔화 대비 필요",
+            "동행지표 호조에도 불구, 선행지표 둔화 시 방어적 포지션 구축 요망",
+            "리스크 관리 차원의 선별적 비중 축소 모니터링",
+            "매크로 지표(실업률 급등 등) 악화 시 보수적 현금 확보 우위",
         ])
 
     def _contraction_action(self, dims) -> str:
         return " | ".join([
-            "향후 6개월 반도체 주식 비중 축소 의견을 강하게 유지함",
-            "적극적인 현금 비중 확대를 제안하며, 기술주보다 방어주/배당주 중심의 피난처 확보가 필요함",
-            "현물 가격의 의미 있는 반등이나 신규주문(ISM New Orders) 개선 전까지 철저히 관망할 것",
-            "하락장 후반 신용 스프레드 축소 신호 확인 시, 장비/소재 섹터 선제 매수를 1차로 준비할 것",
+            "반도체 주식 비중 축소(Underweight) 기조 유지",
+            "방어주 및 배당주 중심의 포트폴리오 안전성 확보 요망",
+            "현물 가격 의미있는 반등 전까지 철저한 관망세",
+            "하락장 후반 신용 스프레드 축소 확인 후 선별 진입을 고려할 것",
         ])
 
     def _recovery_action(self, dims) -> str:
         return " | ".join([
-            "향후 6개월 반도체 주식 비중을 점진적으로 확대할 것을 제안",
-            "사이클 초기 수혜주인 대형 장비 및 소재 기업을 1차 매수 기회로 삼을 것",
-            "고용 지표 악화(Sahm Rule)가 진정되고 거시 리스크가 완화됨을 확인 후, 메모리 주식 전면 매수에 나설 것",
-            "과매도 구간 통과 중임. 공격적인 올인보다는 분할 매수 접근이 유리함",
+            "향후 6개월 반도체 비중을 점진적으로 상향 조정할 것",
+            "사이클 초기 수혜 대상인 장비/소재 섹터 선별적 모니터링",
+            "고용 불안 진정 및 거시 리스크 완화 시 메모리 비중 확대",
+            "성급한 올인보다는 확실한 개선 신호 확인 후 점진적 진입 요망",
         ])
 
     def save_to_db(self, result: CompositeResult) -> None:
