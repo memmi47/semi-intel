@@ -122,7 +122,6 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
     <button class="tab" onclick="showTab('scenarios')">SCENARIOS</button>
     <button class="tab" onclick="showTab('trends')">TRENDS</button>
     <button class="tab" onclick="showTab('data')">DATA</button>
-    <button class="tab" onclick="showTab('reference')">REFERENCE (Offline)</button>
     <button class="tab-muted" onclick="showTab('methodology')">ⓘ METHODOLOGY</button>
   </div>
   <div style="padding:10px 24px 0;font-size:9px;color:var(--dim);font-family:var(--font);display:flex;gap:16px">
@@ -137,7 +136,6 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
   <div id="tab-scenarios" style="display:none"></div>
   <div id="tab-trends" style="display:none"></div>
   <div id="tab-data" style="display:none"></div>
-  <div id="tab-reference" style="display:none"></div>
   <div id="tab-methodology" style="display:none"></div>
 </main>
 
@@ -190,7 +188,7 @@ function showTab(id){
   event.target.classList.add('active');
   if(id==='trends')renderTrends();
   if(id==='methodology')renderMethodology();
-  if(id==='reference')renderMemoryReference();
+  if(id==='scenarios')renderScenarios();
 }
 
 function dimColor(s){return s>=60?'#00d4aa':s<40?'#ff6b6b':'#f0b429';}
@@ -490,60 +488,116 @@ function renderSignals(){
   document.getElementById('tab-signals').innerHTML=h;
 }
 
-// ============================================================
-// SCENARIOS (What-if, no PROB column)
-// ============================================================
 function renderScenarios(){
   if(!scenarioData||!scenarioData.scenarios){document.getElementById('tab-scenarios').innerHTML='<div class="loading">데이터 없음</div>';return;}
   
-  let h = '<div class="card"><div class="card-title">DYNAMIC SCENARIO ANALYSIS</div>';
-  h += '<div style="font-size:11px;color:var(--text);line-height:1.6;margin-bottom:16px">각 이벤트의 예상 발생 확률을 조절하여 총점(Expected Score)의 변화를 직접 시뮬레이션 해보세요.</div>';
+  let h = '<div class="card"><div class="card-title">DYNAMIC SCENARIO ANALYSIS (TORNADO)</div>';
+  h += '<div style="font-size:11px;color:var(--text);line-height:1.6;margin-bottom:16px">각 이벤트 항목 옆의 <b>예상 발생 확률(%)</b>을 소수점 포함 키보드로 직접 입력(Key-in)하여 예상 총점을 시뮬레이션 해보세요. (빈칸은 0%로 간주합니다)</div>';
   
   const baseScore = scoreData?.total_score || 50.0;
-  h += `<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-bottom:24px;padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:8px">`;
-  h += `<div><div style="font-size:9px;color:var(--dim);font-family:var(--font);letter-spacing:1px;text-align:center">CURRENT BASE SCORE</div><div style="font-size:24px;font-weight:700;font-family:var(--font);color:var(--text);text-align:center">${baseScore.toFixed(1)}</div></div>`;
-  h += `<div style="color:var(--border)">▶</div>`;
-  h += `<div><div style="font-size:9px;color:var(--accent);font-family:var(--font);letter-spacing:1px;text-align:center">SIMULATED EXPECTED SCORE</div><div id="dyn-expected-score" style="font-size:32px;font-weight:700;font-family:var(--font);color:var(--accent);text-align:center">${baseScore.toFixed(1)}</div></div>`;
+  h += `<div style="display:flex;justify-content:center;align-items:center;gap:30px;margin-bottom:24px;padding:16px;background:var(--elevated);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,0.5)">`;
+  h += `<div><div style="font-size:10px;color:var(--dim);font-family:var(--font);letter-spacing:1px;text-align:center">CURRENT BASE SCORE</div><div style="font-size:28px;font-weight:700;font-family:var(--font);color:var(--text);text-align:center">${baseScore.toFixed(1)}</div></div>`;
+  h += `<div style="color:var(--dim);font-size:24px">▶</div>`;
+  h += `<div><div style="font-size:10px;color:var(--accent);font-family:var(--font);letter-spacing:1px;text-align:center">SIMULATED EXPECTED SCORE</div><div id="dyn-expected-score" style="font-size:38px;font-weight:700;font-family:var(--font);color:var(--accent);text-align:center;text-shadow:0 0 10px rgba(0,212,170,0.3)">${baseScore.toFixed(1)}</div></div>`;
   h += `</div>`;
 
   window.updateScenarioMath = function() {
     let expected = baseScore;
-    document.querySelectorAll('.scen-slider').forEach(el => {
-        let prob = parseFloat(el.value) / 100.0;
+    document.querySelectorAll('.scen-input').forEach(el => {
+        let val = el.value.trim();
+        let prob = val === '' ? 0 : parseFloat(val) / 100.0;
+        if(isNaN(prob)) prob = 0;
+        
         let impact = parseFloat(el.dataset.impact);
         let scDelta = impact * prob;
         expected += scDelta;
         
-        document.getElementById('scen-prob-'+el.dataset.idx).innerText = el.value + '%';
-        let deltaSpan = document.getElementById('scen-delta-'+el.dataset.idx);
-        deltaSpan.innerText = (scDelta>0?'+':'') + scDelta.toFixed(1);
-        deltaSpan.style.color = scDelta>0 ? '#00d4aa' : '#ff6b6b';
+        // Update bar widths
+        let barW = Math.min(100, Math.abs(scDelta) / 30 * 100);
+        let barEl = document.getElementById('scen-bar-'+el.dataset.idx);
+        let labelEl = document.getElementById('scen-label-'+el.dataset.idx);
+        
+        if (scDelta > 0) {
+            barEl.style.width = barW + '%';
+            barEl.style.marginLeft = '0';
+            barEl.style.marginRight = 'auto';
+            barEl.style.background = 'var(--accent)';
+            barEl.style.boxShadow = '0 0 8px rgba(0,212,170,0.4)';
+        } else if (scDelta < 0) {
+            barEl.style.width = barW + '%';
+            barEl.style.marginLeft = 'auto';
+            barEl.style.marginRight = '0';
+            barEl.style.background = 'var(--red)';
+            barEl.style.boxShadow = '0 0 8px rgba(255,107,107,0.4)';
+        } else {
+            barEl.style.width = '0';
+            barEl.style.boxShadow = 'none';
+        }
+        
+        labelEl.innerText = (scDelta>0?'+':'') + scDelta.toFixed(1);
+        labelEl.style.color = scDelta>0 ? '#00d4aa' : scDelta<0 ? '#ff6b6b' : 'var(--dim)';
     });
     
-    expected = Math.max(0, Math.min(100, expected)); // bound to 0-100
+    expected = Math.max(0, Math.min(100, expected));
     const expEl = document.getElementById('dyn-expected-score');
     expEl.innerText = expected.toFixed(1);
     expEl.style.color = expected >= 65 ? '#00d4aa' : expected < 40 ? '#ff6b6b' : '#f0b429';
   };
   
-  h += `<div style="display:grid;gap:12px">`;
+  h += `<div style="display:flex;flex-direction:column;gap:8px;padding-top:10px">`;
+  h += `<div style="display:grid;grid-template-columns:1.8fr 1fr 2px 1fr 60px;gap:12px;color:var(--dim);font-size:10px;text-align:center;padding-bottom:12px;border-bottom:1px solid var(--border)">`;
+  h += `<div style="text-align:left">시나리오 이벤트 (기본 확률)</div>`;
+  h += `<div>부정적 타격 (-)</div>`;
+  h += `<div></div>`;
+  h += `<div>긍정적 기여 (+)</div>`;
+  h += `<div style="text-align:right">Key-in</div>`;
+  h += `</div>`;
+  
   (scenarioData.scenarios||[]).forEach((sc, idx)=>{
     const s = sc.scenario||{};
-    let initProb = 30; // 기준 확률 시작점
-    if (s.name.includes("China")) initProb = 40;
-    if (s.name.includes("Recession")) initProb = 20;
+    let initProb = (s.probability != null) ? Math.round(s.probability * 100) : 30;
 
-    h += `<div style="padding:16px;background:var(--elevated);border:1px solid var(--border);border-radius:6px">`;
-    h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">`;
-    h += `<span style="font-size:12px;font-weight:600;color:var(--text)">${s.name||''}</span>`;
-    h += `<span style="font-size:11px;font-family:var(--font);background:var(--bg);padding:2px 8px;border-radius:4px">예상 변동 폭: <span id="scen-delta-${idx}" style="color:${sc.delta>0?'#00d4aa':'#ff6b6b'};font-weight:700;margin-left:4px">0.0</span> <span style="color:var(--dim);font-size:9px;margin-left:4px">(Max Impact: ${sc.delta>0?'+':''}${sc.delta.toFixed(1)})</span></span>`;
+    h += `<div style="display:grid;grid-template-columns:1.8fr 1fr 2px 1fr 60px;gap:12px;align-items:center;padding:8px 0">`;
+    
+    // 1. Text description
+    h += `<div style="display:flex;flex-direction:column;justify-content:center">`;
+    h += `<span style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">${s.name||''}</span>`;
+    h += `<span style="font-size:9px;color:var(--dim);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.description||''}">${s.description||''}</span>`;
     h += `</div>`;
-    h += `<div style="font-size:10px;color:var(--dim);margin-bottom:12px;line-height:1.5">${s.description||''}</div>`;
-    h += `<div style="display:flex;align-items:center;gap:12px">`;
-    h += `<span style="font-size:9px;color:var(--dim)">0% (발생 안함)</span>`;
-    h += `<input type="range" class="scen-slider" data-idx="${idx}" data-impact="${sc.delta}" value="${initProb}" min="0" max="100" step="5" oninput="updateScenarioMath()" style="flex:1;accent-color:var(--accent);cursor:pointer">`;
-    h += `<span id="scen-prob-${idx}" style="font-size:11px;font-family:var(--font);width:40px;text-align:right;color:var(--text);font-weight:600">${initProb}%</span>`;
+    
+    // 2. Left side area (negative)
+    h += `<div style="display:flex;align-items:center;height:100%;border-right:0px solid transparent" class="tornado-left">`;
+    h += `<div style="width:100%;display:flex">`;
+    if (sc.delta < 0) {
+        h += `<div id="scen-bar-${idx}" style="height:14px;border-radius:3px 0 0 3px;transition:all 0.3s ease"></div>`;
+    } else {
+        h += `<div style="width:100%"></div>`; // placeholder spacer
+    }
     h += `</div></div>`;
+    
+    // 3. Center line
+    h += `<div style="width:2px;height:100%;background:rgba(255,255,255,0.1)"></div>`;
+    
+    // 4. Right side area (positive)
+    h += `<div style="display:flex;align-items:center;height:100%" class="tornado-right">`;
+    h += `<div style="width:100%;display:flex">`;
+    if (sc.delta >= 0) {
+        h += `<div id="scen-bar-${idx}" style="height:14px;border-radius:0 3px 3px 0;transition:all 0.3s ease"></div>`;
+    } else {
+        h += `<div style="width:100%"></div>`; // placeholder spacer
+    }
+    h += `</div></div>`;
+    
+    // 5. Input Box Area
+    h += `<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">`;
+    h += `<div id="scen-label-${idx}" style="font-size:10px;font-family:var(--font);font-weight:700;width:30px;text-align:right">0.0</div>`;
+    h += `<div style="position:relative;width:55px;margin-left:6px">`;
+    h += `<input type="number" class="scen-input" data-idx="${idx}" data-impact="${sc.delta}" value="${initProb}" step="5" min="0" max="100" oninput="updateScenarioMath()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:12px;padding:6px 14px 6px 6px;border-radius:4px;outline:none;text-align:right">`;
+    h += `<span style="position:absolute;right:6px;top:7px;font-size:10px;color:var(--dim)">%</span>`;
+    h += `</div>`;
+    h += `</div>`;
+    
+    h += `</div>`;
   });
   h += `</div></div>`;
 
