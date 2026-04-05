@@ -477,12 +477,75 @@ CHINA_PMI = Indicator(
     ],
 )
 
-# --- Memory Price Proxies (3-Layer 구조) ---
-# 수동 입력 제거, 전량 자동 수집
+# --- Memory Price / DXI Indexes (v4.0 통합) ---
+
+DRAMEXCHANGE_INDEX = Indicator(
+    id="DXI_INDEX",
+    name="DRAMeXchange Index (DXI)",
+    tier=Tier.CORE,
+    category="Market Index",
+    source="DRAMeXchange (자동 수집)",
+    frequency=Frequency.DAILY,
+    dimension=Dimension.PRICE,
+    book_chapter="N/A",
+    lag_days=0,
+    timing_class=TimingClass.COINCIDENT,
+    semi_relevance="반도체 전체 시장의 가격 모멘텀을 지수화. 업황 전환의 가장 빠른 지표",
+    signal_logic="DXI 지수 상승 → 업황 호전, 하락 → 업황 둔화. 전고점 돌파 시 강력한 확장 신호",
+    weight_in_dimension=1.5, # DXI에 높은 비중 부여
+)
+
+DRAM_SPOT_DDR5 = Indicator(
+    id="DRAM_SPOT",
+    name="DRAM Spot Price (DDR5 16Gb)",
+    tier=Tier.CORE,
+    category="Prices & Inflation",
+    source="DRAMeXchange (자동 수집)",
+    frequency=Frequency.DAILY,
+    dimension=Dimension.PRICE,
+    book_chapter="Ch4 p396",
+    lag_days=0,
+    timing_class=TimingClass.COINCIDENT,
+    semi_relevance="DDR5 16Gb는 현재 주력 제품. 스팟 가격은 계약가의 선행지표 역할",
+    signal_logic="Spot 가격 반등 → 계약가 상승 예고 및 재고 축적 수요 발생",
+    weight_in_dimension=1.2,
+)
+
+NAND_SPOT_WAFER = Indicator(
+    id="NAND_SPOT",
+    name="NAND Spot Price (512Gb TLC Wafer)",
+    tier=Tier.CORE,
+    category="Prices & Inflation",
+    source="DRAMeXchange (자동 수집)",
+    frequency=Frequency.DAILY,
+    dimension=Dimension.PRICE,
+    book_chapter="Ch4 p398",
+    lag_days=0,
+    timing_class=TimingClass.COINCIDENT,
+    semi_relevance="Wafer 가격은 NAND 시장의 원가 및 수급 균형을 가장 민감하게 반영",
+    signal_logic="Wafer 가격 상승 → 범용 NAND 업황 회복 및 수익성 개선",
+    weight_in_dimension=1.0,
+)
+
+DRAM_SPREAD = Indicator(
+    id="DRAM_SPREAD",
+    name="DRAM Spot Premium (Spot vs Contract Crossover)",
+    tier=Tier.CORE,
+    category="Sector Specific",
+    source="DRAMeXchange (자동 수집)",
+    frequency=Frequency.MONTHLY, # 계약가가 월별이므로 (실제론 daily spot과 비교)
+    dimension=Dimension.PRICE,
+    book_chapter="Ch4 p402",
+    lag_days=0,
+    timing_class=TimingClass.LEADING,
+    semi_relevance="Spot 가격과 Contract(계약가)의 괴리율. Spot 가격이 Contract 위로 뚫고 올라가는 Golden Cross는 강력한 호황 전환 시그널.",
+    signal_logic="Spot/Contract 괴리율 > 0 (프리미엄) 발생 시 강력 매수 시그널. 음수로 전환 시 매도 시그널.",
+    weight_in_dimension=1.5,
+)
 
 MEMORY_DRAM_PROXY = Indicator(
     id="DRAM_PROXY",
-    name="DRAM Price Proxy (Pure Player Basket)",
+    name="DRAM Price Proxy (SK Hynix, Micron, Nanya)",
     tier=Tier.SECTOR,
     category="Sector Specific",
     source="Yahoo Finance (자동 수집)",
@@ -490,19 +553,16 @@ MEMORY_DRAM_PROXY = Indicator(
     dimension=Dimension.PRICE,
     book_chapter="N/A",
     lag_days=0,
-    timing_class=TimingClass.COINCIDENT,
-    semi_relevance=(
-        "DRAM pure player 주가 basket으로 DRAM 가격 방향성 대리. "
-        "Micron(DRAM ~70% 매출) + Nanya(DRAM only, 레거시 비중 높아 범용 DRAM 가격의 순수 반영체). "
-        "주가는 DRAM 계약가를 1-3개월 선행 반영하므로 투자 판단에 더 유리"
-    ),
-    signal_logic="Basket MoM% 양수 → DRAM 가격 상승 기대, 음수 → 하락 기대. 3개월 연속 방향 전환 시 사이클 전환 신호",
-    yahoo_symbols=["MU", "2408.TW"],
+    timing_class=TimingClass.LEADING,
+    semi_relevance="DRAM 공급 3사(SK하이닉스 포함, 삼성전자 제외)의 주가 모멘텀. 주가는 현물 가격에 선행하는 특성을 지님.",
+    signal_logic="Basket의 연속 상승장 파악. 가격 변곡점을 가장 먼저 알리는 선행 지표.",
+    yahoo_symbols=["MU", "2408.TW", "000660.KS"],
+    weight_in_dimension=0.8,
 )
 
 MEMORY_NAND_PROXY = Indicator(
     id="NAND_PROXY",
-    name="NAND Price Proxy (Pure Player Basket)",
+    name="NAND Price Proxy (SNDK, Kioxia)",
     tier=Tier.SECTOR,
     category="Sector Specific",
     source="Yahoo Finance (자동 수집)",
@@ -510,36 +570,11 @@ MEMORY_NAND_PROXY = Indicator(
     dimension=Dimension.PRICE,
     book_chapter="N/A",
     lag_days=0,
-    timing_class=TimingClass.COINCIDENT,
-    semi_relevance=(
-        "NAND pure player 주가 basket으로 NAND 가격 방향성 대리. "
-        "SanDisk(SNDK, NAND only, NASDAQ 대형주) + Kioxia(285A.T, NAND only, 2024 IPO). "
-        "Kioxia 데이터 불안정 시 SanDisk 단독으로 fallback"
-    ),
-    signal_logic="Basket MoM% 양수 → NAND 가격 상승 기대. SanDisk의 데이터센터 NAND 비중 증가로 AI 스토리지 수요도 반영",
-    yahoo_symbols=["SNDK", "285A.T"],
-)
-
-HBM_PREMIUM = Indicator(
-    id="HBM_PREMIUM",
-    name="HBM Premium (SK hynix Outperformance)",
-    tier=Tier.SECTOR,
-    category="Sector Specific",
-    source="Yahoo Finance (자동 수집)",
-    frequency=Frequency.DAILY,
-    dimension=Dimension.DEMAND,
-    book_chapter="N/A",
-    lag_days=0,
     timing_class=TimingClass.LEADING,
-    demand_sub="ai_infra",
-    semi_relevance=(
-        "SK하이닉스 주가의 DRAM peer 대비 초과수익률 = HBM/AI 수요 프리미엄. "
-        "SK하이닉스와 Micron/Nanya 모두 DRAM을 생산하지만, SK하이닉스만 더 오르면 "
-        "그 차이는 HBM/AI 수요 프리미엄. 초과수익률 확대 → HBM 수요 강세, 축소/역전 → 프리미엄 소멸"
-    ),
-    signal_logic="SK하이닉스 MoM% - DRAM basket MoM% > 0 → HBM 수요 강세. 차이 확대 → AI 투자 가속, 축소 → 둔화 경고",
-    yahoo_symbols=["000660.KS"],
-    # Note: Signal 산출 시 DRAM_PROXY의 MU, 2408.TW 데이터와 교차 계산 필요
+    semi_relevance="NAND Pure player의 주가 모멘텀. NAND 현물 시장보다 더 빠른 시그널을 잡아낼 수 있음.",
+    signal_logic="Basket의 연속 상승장 파악. Spot 가격의 변곡점을 앞서 확인.",
+    yahoo_symbols=["SNDK", "285A.T"],
+    weight_in_dimension=0.7,
 )
 
 # --- Equipment Stocks Proxy (SEMI B/B 대체) ---

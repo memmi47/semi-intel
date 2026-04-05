@@ -626,3 +626,37 @@ def export_full_xlsx(request: Request):
     )
 
 
+
+# ============================================================
+# Offline Reference Data (Omdia & WSTS)
+# ============================================================
+from sqlalchemy import text
+
+@router.get("/reference/omdia")
+def get_omdia_reference(request: Request):
+    """Omdia 수급 오프라인 레퍼런스 데이터"""
+    db = get_db(request)
+    session = db.get_session()
+    try:
+        # Check if table exists manually
+        result = session.execute(text("SELECT product, metric, reference_date, value FROM omdia_reference ORDER BY reference_date"))
+        records = [dict(r._mapping) for r in result]
+        return {"data": records}
+    except Exception as e:
+        return {"error": str(e), "data": []}
+    finally:
+        session.close()
+
+@router.get("/reference/wsts")
+def get_wsts_reference(request: Request):
+    """WSTS 월별 오프라인 레퍼런스 데이터"""
+    db = get_db(request)
+    session = db.get_session()
+    try:
+        result = session.execute(text("SELECT product, metric, reference_date, value FROM wsts_reference ORDER BY reference_date"))
+        records = [dict(r._mapping) for r in result]
+        return {"data": records}
+    except Exception as e:
+        return {"error": str(e), "data": []}
+    finally:
+        session.close()

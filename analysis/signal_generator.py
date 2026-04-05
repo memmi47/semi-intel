@@ -71,7 +71,10 @@ class SignalGenerator:
             "CHINA_PMI": self._signal_china_pmi,
             "DRAM_PROXY": self._signal_dram_proxy,
             "NAND_PROXY": self._signal_nand_proxy,
-            "HBM_PREMIUM": self._signal_hbm_premium,
+            "DXI_INDEX": self._signal_dxi_index,
+            "DRAM_SPOT": self._signal_dram_spot,
+            "NAND_SPOT": self._signal_nand_spot,
+            "DRAM_SPREAD": self._signal_dram_spread,
             "EQUIP_PROXY": self._signal_equip_proxy,
             "WSTS": self._signal_wsts,
             "HYPERSCALER_CAPEX": self._signal_hyperscaler_capex,
@@ -788,119 +791,165 @@ class SignalGenerator:
         avg = round(np.mean(valid), 2) if valid else None
         return avg, moms
 
+    def _signal_dxi_index(self) -> Signal | None:
+        """DXI Index: MoM% 및 3개월 추세 활용"""
+        series = self._load_series("DXI_INDEX")
+        if series is None or len(series) < 2:
+            return None
+        return self._calc_price_signal("DXI_INDEX", "DXI Index", series)
+
+    def _calc_price_signal(self, id: str, name: str, series: "pd.Series") -> Signal | None:
+        mom_val = mom_pct(series)
+        if len(mom_val) < 1 or np.isnan(mom_val.iloc[-1]):
+            return None
+        mom = round(float(mom_val.iloc[-1]), 2)
+        
+        dir3 = direction(series, periods=60) # ~3개월 (trading days 추정)
+        trend_3m = int(dir3.iloc[-1]) if len(dir3) > 0 else 0
+        
+        # 상대적 기간(Duration) 분석: 몇 달(또는 며칠) 연속 상승/하락 중인가?
+        consec_val = consecutive_direction(series)
+        consec_days = int(consec_val.iloc[-1]) if len(consec_val) > 0 else 0
+        
+        score = 0.5
+        # 극단적인 가격 변동이 있을 수 있으므로 상/하단을 강하게 락(Lock)
+        if mom > 20: 
+            score += 0.4  # 강력한 급등
+        elif mom > 10:
+            score += 0.3
+        elif mom > 3:
+            score += 0.15
+        elif mom > 0:
+            score += 0.05
+        elif mom < -20:
+            score -= 0.4
+        elif mom < -10:
+            score -= 0.3
+        elif mom < -3:
+            score -= 0.15
+        elif mom < 0:
+            score -= 0.05
+            
+        if trend_3m > 0:
+            score += 0.1
+        elif trend_3m < 0:
+            score -= 0.1
+            
+        # 연속 기간에 따른 추가 가감 (상대적 모멘텀)
+        # 현물 데이터(Daily) 특성상 15영업일(약 3주) 연속 상승 시 강세 확정, 
+        # 혹은 긴 하락 후 반전 시 가점
+        if consec_days > 15:
+            score += 0.1
+        elif consec_days < -15:
+            score -= 0.1
+            
+        score = max(0, min(1, score))
+        sub = {"mom_pct": mom, "3m_trend": trend_3m, "consecutive_days": consec_days}
+        desc = f"{name} MoM {mom:+.1f}% ({abs(consec_days)}일 연속 {'상승' if consec_days > 0 else '하락'})"
+        return self._make_signal(id, "price_cycle", score, sub, desc)
+
+    def _signal_dram_spot(self) -> Signal | None:
+        series = self._load_series("DDR5_16G_SPOT")
+        if series is None or len(series) < 2: return None
+        return self._calc_price_signal("DRAM_SPOT", "DRAM Spot (DDR5)", series)
+
+    def _signal_nand_spot(self) -> Signal | None:
+        # 우선 512G 제품을 사용.
+        series = self._load_series("NAND_512G_WAFER_LOW")
+        if series is None or len(series) < 2: return None
+        return self._calc_price_signal("NAND_SPOT", "NAND Spot (512Gb Wafer)", series)
+
+    def _signal_dram_spread(self) -> Signal | None:
+        """DRAM Spot vs Contract 괴리율 및 크로스오버 (초핵심 지표)"""
+        spot = self._load_series("DDR5_16G_SPOT")
+        contract = self._load_series("DDR5_16G_CONTRACT")
+        
+        if spot is None or contract is None or len(spot) < 2 or len(contract) < 2:
+            return None
+            
+        # 가장 최근 날짜 기준으로 Contract 가격 매핑 (Contract는 월별 고정일 수 있음)
+        # ffill()을 통해 Spot 날짜 배열에 Contract 가격을 맞춤
+        combined = pd.DataFrame({"spot": spot, "contract": contract}).ffill().dropna()
+        if len(combined) < 2:
+            return None
+            
+        # 프리미엄: (Spot / Contract - 1) * 100
+        spreads = ((combined["spot"] / combined["contract"]) - 1) * 100
+        current_spread = round(float(spreads.iloc[-1]), 2)
+        prev_spread = round(float(spreads.iloc[-2]), 2)
+        
+        # 크로스오버 감지
+        golden_cross = (prev_spread <= 0 and current_spread > 0)
+        death_cross = (prev_spread >= 0 and current_spread < 0)
+        
+        score = 0.5
+        if current_spread > 5:
+            score += 0.3 # 강한 프리미엄
+        elif current_spread > 0:
+            score += 0.15 # 약한 프리미엄 (호황 초입)
+        elif current_spread < -5:
+            score -= 0.3 # 강한 디스카운트 (침체장)
+        elif current_spread < 0:
+            score -= 0.15
+            
+        if golden_cross:
+            score += 0.2  # 프리미엄 전환의 순간에 가점 폭발
+        elif death_cross:
+            score -= 0.2  # 역전 순간 감점 폭발
+            
+        score = max(0, min(1, score))
+        sub = {
+            "spot_price": float(combined["spot"].iloc[-1]),
+            "contract_price": float(combined["contract"].iloc[-1]),
+            "spread_pct": current_spread,
+            "crossover": "golden" if golden_cross else "death" if death_cross else "none"
+        }
+        
+        cross_note = " (Golden Cross 발생!)" if golden_cross else " (Death Cross 발생!)" if death_cross else ""
+        desc = f"DRAM Spread {current_spread:+.2f}%{cross_note}"
+        return self._make_signal("DRAM_SPREAD", "price_cycle", score, sub, desc)
+
     def _signal_dram_proxy(self) -> Signal | None:
-        """DRAM 가격 Proxy: Micron(MU) + Nanya(2408.TW) basket MoM%"""
-        avg_mom, moms = self._load_basket_mom(["MU", "2408.TW"])
+        """DRAM 가격 Proxy: SK Hynix, Micron, Nanya basket MoM%"""
+        avg_mom, moms = self._load_basket_mom(["000660.KS", "MU", "2408.TW"])
         if avg_mom is None:
             return None
 
-        sub = {"basket_mom_pct": avg_mom, "components": moms}
-
-        # 3개월 추세 (MU 기준, 더 안정적)
-        mu = self._load_series("MU")
-        if mu is not None and len(mu) > 60:
-            dir3 = direction(mu, periods=60)  # ~3개월 (trading days)
-            sub["3m_trend"] = int(dir3.iloc[-1]) if len(dir3) > 0 else 0
-        else:
-            sub["3m_trend"] = 0
-
         score = 0.5
-        if avg_mom > 10:
-            score += 0.3
-        elif avg_mom > 3:
-            score += 0.15
-        elif avg_mom > 0:
-            score += 0.05
-        elif avg_mom < -10:
-            score -= 0.3
-        elif avg_mom < -3:
-            score -= 0.15
-        elif avg_mom < 0:
-            score -= 0.05
-
-        if sub["3m_trend"] > 0:
-            score += 0.1
-        elif sub["3m_trend"] < 0:
-            score -= 0.1
+        if avg_mom > 10: score += 0.3
+        elif avg_mom > 3: score += 0.15
+        elif avg_mom > 0: score += 0.05
+        elif avg_mom < -10: score -= 0.3
+        elif avg_mom < -3: score -= 0.15
+        elif avg_mom < 0: score -= 0.05
 
         score = max(0, min(1, score))
+        sub = {"basket_mom_pct": avg_mom, "components": moms}
         components = ", ".join(f"{k}: {v:+.1f}%" for k, v in moms.items())
-        desc = f"DRAM basket MoM {avg_mom:+.1f}% ({components})"
+        desc = f"DRAM Proxy MoM {avg_mom:+.1f}% ({components})"
         return self._make_signal("DRAM_PROXY", "price_cycle", score, sub, desc)
 
     def _signal_nand_proxy(self) -> Signal | None:
         """NAND 가격 Proxy: SanDisk(SNDK) + Kioxia(285A.T) basket MoM%"""
         avg_mom, moms = self._load_basket_mom(["SNDK", "285A.T"])
-
-        # Kioxia 데이터 없으면 SanDisk 단독 fallback
         if avg_mom is None:
             avg_mom, moms = self._load_basket_mom(["SNDK"])
         if avg_mom is None:
             return None
 
+        score = 0.5
+        if avg_mom > 10: score += 0.3
+        elif avg_mom > 3: score += 0.15
+        elif avg_mom > 0: score += 0.05
+        elif avg_mom < -10: score -= 0.3
+        elif avg_mom < -3: score -= 0.15
+        elif avg_mom < 0: score -= 0.05
+
+        score = max(0, min(1, score))
         sub = {"basket_mom_pct": avg_mom, "components": moms, "fallback": "285A.T" not in moms}
-
-        score = 0.5
-        if avg_mom > 10:
-            score += 0.3
-        elif avg_mom > 3:
-            score += 0.15
-        elif avg_mom > 0:
-            score += 0.05
-        elif avg_mom < -10:
-            score -= 0.3
-        elif avg_mom < -3:
-            score -= 0.15
-        elif avg_mom < 0:
-            score -= 0.05
-
-        score = max(0, min(1, score))
-        components = ", ".join(f"{k}: {v:+.1f}%" for k, v in moms.items())
         fallback_note = " [SNDK only]" if sub["fallback"] else ""
-        desc = f"NAND basket MoM {avg_mom:+.1f}% ({components}){fallback_note}"
+        desc = f"NAND Proxy MoM {avg_mom:+.1f}%{fallback_note}"
         return self._make_signal("NAND_PROXY", "price_cycle", score, sub, desc)
-
-    def _signal_hbm_premium(self) -> Signal | None:
-        """HBM Premium: SK하이닉스 초과수익률 = SK MoM% - DRAM basket MoM%"""
-        sk = self._load_series("000660.KS")
-        if sk is None or len(sk) < 2:
-            return None
-
-        sk_mom_val = mom_pct(sk)
-        if len(sk_mom_val) < 1 or np.isnan(sk_mom_val.iloc[-1]):
-            return None
-        sk_mom = round(float(sk_mom_val.iloc[-1]), 2)
-
-        # DRAM basket MoM
-        dram_avg, dram_moms = self._load_basket_mom(["MU", "2408.TW"])
-        if dram_avg is None:
-            dram_avg = 0.0
-
-        premium = round(sk_mom - dram_avg, 2)
-
-        sub = {
-            "sk_hynix_mom": sk_mom,
-            "dram_basket_mom": dram_avg,
-            "hbm_premium": premium,
-        }
-
-        # premium > 0: HBM 프리미엄 인정, < 0: 프리미엄 소멸
-        score = 0.5
-        if premium > 10:
-            score += 0.3
-        elif premium > 3:
-            score += 0.15
-        elif premium > 0:
-            score += 0.05
-        elif premium < -10:
-            score -= 0.2
-        elif premium < -3:
-            score -= 0.1
-
-        score = max(0, min(1, score))
-        status = "HBM 프리미엄 확대" if premium > 3 else "HBM 프리미엄 유지" if premium > 0 else "HBM 프리미엄 축소"
-        desc = f"SK하이닉스 MoM {sk_mom:+.1f}% vs DRAM basket {dram_avg:+.1f}% → 초과수익률 {premium:+.1f}% ({status})"
-        return self._make_signal("HBM_PREMIUM", "demand_cycle", score, sub, desc)
 
     def _signal_equip_proxy(self) -> Signal | None:
         """장비 투자 Proxy: AMAT + LRCX + ASML basket MoM% (SEMI B/B 대체)"""

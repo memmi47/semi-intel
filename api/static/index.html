@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Semi-Intel v4.0 대시보드</title>
-<meta name="description" content="반도체 사이클 투자 인텔리전스 — 26개 경제·섹터 지표 기반 실시간 복합 스코어링 (v4.0)">
+<title>Semi-Intel v4.1 대시보드</title>
+<meta name="description" content="반도체 사이클 투자 인텔리전스 — 26개 경제·섹터 지표 기반 실시간 복합 스코어링 (v4.1)">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#06080d;--surface:#0c1018;--elevated:#121822;--border:#1c2638;--text:#c8d6e5;--dim:#5a6d84;--muted:#3a4a5e;--accent:#00d4aa;--warn:#f0b429;--blue:#4dabf7;--red:#ff6b6b;--font:'Menlo','Consolas',monospace;--sans:-apple-system,'Segoe UI',sans-serif}
@@ -106,8 +106,8 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
 <header>
   <div class="hdr-top">
     <div>
-      <div class="hdr-title">Semi-Intel v3.1</div>
-      <div class="hdr-name">Semiconductor Cycle Command Center</div>
+      <div class="hdr-title">Semi-Intel v4.1</div>
+      <div class="hdr-name">Memory Cycle Now</div>
     </div>
     <div class="hdr-stats">
       <div><div class="label">신뢰도</div><div id="hdr-conf">-</div></div>
@@ -122,6 +122,7 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
     <button class="tab" onclick="showTab('scenarios')">SCENARIOS</button>
     <button class="tab" onclick="showTab('trends')">TRENDS</button>
     <button class="tab" onclick="showTab('data')">DATA</button>
+    <button class="tab" onclick="showTab('reference')">REFERENCE (Offline)</button>
     <button class="tab-muted" onclick="showTab('methodology')">ⓘ METHODOLOGY</button>
   </div>
   <div style="padding:10px 24px 0;font-size:9px;color:var(--dim);font-family:var(--font);display:flex;gap:16px">
@@ -136,11 +137,12 @@ footer{border-top:1px solid var(--border);padding:10px 24px;font-size:9px;color:
   <div id="tab-scenarios" style="display:none"></div>
   <div id="tab-trends" style="display:none"></div>
   <div id="tab-data" style="display:none"></div>
+  <div id="tab-reference" style="display:none"></div>
   <div id="tab-methodology" style="display:none"></div>
 </main>
 
 <footer>
-  <span>Semi-Intel v3.1 — Based on "The Secrets of Economic Indicators" + Sector Extensions</span>
+  <span>Semi-Intel v4.1 — Based on "The Secrets of Economic Indicators" + Sector Extensions</span>
   <span id="last-update">-</span>
 </footer>
 
@@ -188,6 +190,7 @@ function showTab(id){
   event.target.classList.add('active');
   if(id==='trends')renderTrends();
   if(id==='methodology')renderMethodology();
+  if(id==='reference')renderMemoryReference();
 }
 
 function dimColor(s){return s>=60?'#00d4aa':s<40?'#ff6b6b':'#f0b429';}
@@ -332,12 +335,15 @@ function renderOverview(){
   const p_color = p_score >= 60 ? '#00d4aa' : p_score <= 40 ? '#ff6b6b' : '#f0b429';
   const d_color = d_score >= 60 ? '#00d4aa' : d_score <= 40 ? '#ff6b6b' : '#f0b429';
   const c_color = c_score >= 60 ? '#00d4aa' : c_score <= 40 ? '#ff6b6b' : '#f0b429';
-  h += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:12px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;align-items:center">`;
-  h += `<div style="text-align:center"><div style="font-size:9px;color:var(--accent);font-family:var(--font);letter-spacing:1px">예측 (선행)</div><div style="font-size:22px;font-weight:700;font-family:var(--font);color:${p_color}">${p_score.toFixed(1)}</div></div>`;
-  h += `<div style="text-align:center"><div style="font-size:9px;color:var(--blue);font-family:var(--font);letter-spacing:1px">진단 (동행)</div><div style="font-size:22px;font-weight:700;font-family:var(--font);color:${d_color}">${d_score.toFixed(1)}</div></div>`;
-  h += `<div style="text-align:center"><div style="font-size:9px;color:var(--dim);font-family:var(--font);letter-spacing:1px">확인 (후행)</div><div style="font-size:22px;font-weight:700;font-family:var(--font);color:${c_color}">${c_score.toFixed(1)}</div></div>`;
-  h += `<div style="font-size:10px;color:var(--warn);font-family:var(--font);padding-left:8px;border-left:1px solid var(--border)">${scoreGap}</div>`;
-  h += `</div>`;
+
+  h += `<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding:16px;background:var(--elevated);border:1px solid var(--border);border-radius:8px">`;
+  h += `<div style="text-align:center"><div style="font-size:10px;color:var(--dim);font-family:var(--font);letter-spacing:2px">TOTAL SCORE</div><div style="font-size:48px;font-weight:700;font-family:var(--font);color:var(--text)">${s.total_score.toFixed(1)}</div><div style="font-size:11px;color:${rc};letter-spacing:1px;margin-top:4px">${REGIME_LABELS[s.regime]}</div></div>`;
+  h += `<div style="display:flex;justify-content:center;gap:30px;border-top:1px solid var(--border);padding-top:12px;margin-top:4px">`;
+  h += `<div style="text-align:center;opacity:0.8"><div style="font-size:9px;color:var(--accent);font-family:var(--font);letter-spacing:1px">예측(선행) 50%</div><div style="font-size:16px;font-weight:700;font-family:var(--font);color:${p_color}">${p_score.toFixed(1)}</div></div>`;
+  h += `<div style="text-align:center;opacity:0.8"><div style="font-size:9px;color:var(--blue);font-family:var(--font);letter-spacing:1px">진단(동행) 30%</div><div style="font-size:16px;font-weight:700;font-family:var(--font);color:${d_color}">${d_score.toFixed(1)}</div></div>`;
+  h += `<div style="text-align:center;opacity:0.8"><div style="font-size:9px;color:var(--dim);font-family:var(--font);letter-spacing:1px">확인(후행) 20%</div><div style="font-size:16px;font-weight:700;font-family:var(--font);color:${c_color}">${c_score.toFixed(1)}</div></div>`;
+  h += `</div></div>`;
+  if (scoreGap) h += `<div style="font-size:10px;color:var(--warn);font-family:var(--font);text-align:center;margin-bottom:12px">${scoreGap}</div>`;
   // ────────────────────────────────────────
 
   if (s.trend_alert) {
@@ -598,7 +604,7 @@ function renderMethodology(){
     macro_regime: {pct:'20%', why:'금리·유동성 환경이 테크 밸류에이션의 할인율을 결정. v4.0: HY Credit Spread(신용 리스크 선행)과 Sahm Rule(리세션 실시간 탐지) 신규 편입.'},
     global_demand: {pct:'10%', why:'반도체는 글로벌 교역재. 중국이 최대 소비국(~35%)이나 수출 규제로 직접 영향이 제한적이어서 비중 하향.'}
   };
-  let h = '<div class="card"><div class="card-title">v4.0 아키텍처: 3-Layer 예측 시스템</div>';
+  let h = '<div class="card"><div class="card-title">v4.1 아키텍처: 3-Layer 예측 시스템</div>';
   h += '<div style="font-size:11px;line-height:1.7;color:var(--text);margin-bottom:16px">';
   h += '<b style="color:var(--accent)">핵심 원칙:</b> 단순 가중 평균이 아닌, 지표의 선후행성(Timing)에 따라 3개 계층으로 분리하여 사이클 방향성을 조기 포착합니다.<br><br>';
   h += '<b style="color:var(--accent)">■ Layer 1: 예측 스코어 (Predictive, 50%)</b> — 선행지표만. 향후 3~6개월 방향을 가리킵니다. Sigmoid 변환 적용으로 임계값 근처 신호를 날카롭게 포착.<br>';
@@ -627,20 +633,113 @@ function renderMethodology(){
 
   h += '<div class="card" style="margin-top:12px"><div class="card-title">데이터 소스 및 한계</div>';
   h += '<div style="font-size:10px;line-height:1.7;color:var(--text)">';
-  h += '모든 데이터는 FRED API, Yahoo Finance에서 자동 수집됩니다. ';
-  h += 'DRAM/NAND 가격은 순수 메모리 기업 주가 바스켓으로 근사합니다 (TrendForce 직접 데이터 미확보). ';
-  h += 'Hyperscaler CapEx는 분기 공시 기준으로 45일 후행합니다. ';
+  h += '모든 데이터는 FRED API, Yahoo Finance, WSTS 등에서 자동 수집됩니다. ';
   h += '데이터 미확보 지표는 중립(50점)으로 처리되며, 커버리지가 낮을수록 신뢰도가 저하됩니다.<br><br>';
   h += '<b>이 모델은 투자 조언이 아닙니다.</b> 투자 판단의 보조 도구로서만 활용하시기 바랍니다.';
+  h += '</div></div>';
+
+  h += '<div class="card" style="margin-top:12px"><div class="card-title">CYCLE 전환 임계값 (Score Thresholds)</div>';
+  h += '<div style="font-size:11px;line-height:1.8;color:var(--text)">';
+  h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><div style="width:14px;height:14px;border-radius:3px;background:var(--accent)"></div><b style="width:120px">확장기 (Expansion)</b><span style="color:var(--dim);font-family:var(--font);width:60px">65점 이상</span><span>반도체 사이클 최적기. 집중 매수 및 비중 극한.</span></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><div style="width:14px;height:14px;border-radius:3px;background:var(--warn)"></div><b style="width:120px">후기확장 (Late Cycle)</b><span style="color:var(--dim);font-family:var(--font);width:60px">50점 이상</span><span>혼조세 및 고점 징후. 부분 차익실현 및 방어 선별.</span></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><div style="width:14px;height:14px;border-radius:3px;background:var(--blue)"></div><b style="width:120px">회복기 (Recovery)</b><span style="color:var(--dim);font-family:var(--font);width:60px">35-50 구간</span><span>바닥 탈출의 초기 신호. 장비/소재 등 선별적 1차 매수 진입.</span></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><div style="width:14px;height:14px;border-radius:3px;background:var(--red)"></div><b style="width:120px">수축기 (Contraction)</b><span style="color:var(--dim);font-family:var(--font);width:60px">35점 미만</span><span>완전한 침체 및 하락. 현금 비중 최대화 및 올관망.</span></div>';
   h += '</div></div>';
 
   document.getElementById('tab-methodology').innerHTML=h;
 }
 
+// ============================================================
+// MEMORY REFERENCE TAB
+// ============================================================
+async function renderMemoryReference() {
+  document.getElementById("tab-reference").innerHTML = "<div class=\"loading\">레퍼런스 데이터 로딩 중...</div>";
+
+  const omdiaRes = await fetchJSON("/api/reference/omdia");
+  const wstsRes = await fetchJSON("/api/reference/wsts");
+
+  if(!omdiaRes || !wstsRes) {
+      document.getElementById("tab-reference").innerHTML = "<div class=\"loading\">데이터를 불러오지 못했습니다. import_memory_reference.py가 실행되었는지 확인하세요.</div>";
+      return;
+  }
+
+  let h = "<div class=\"card\"><div class=\"card-title\">Memory Market Reference (Offline)</div>";
+  h += "<div style=\"font-size:11px;color:var(--text);line-height:1.6;margin-bottom:16px;\">";
+  h += "이 데이터는 실시간 스코어 예측 과정에 전혀 관여하지 않으며, 과거 사이클과 수급 펀더멘털을 거시적으로 복기하는 <b>종속 격리(Isolated) 레퍼런스</b> 용도입니다.<br>";
+  h += "현재 데이터: Omdia (1Q11 ~ 4Q25 Actual), WSTS (1991 ~ 2025).</div>";
+
+  h += "<div class=\"grid2\">";
+  h += "<div class=\"card\"><div class=\"card-title\">Omdia DRAM Sufficiency Ratio vs Supply/Demand</div><div style=\"height:300px;\"><canvas id=\"omdiaChart\"></canvas></div></div>";
+  h += "<div class=\"card\"><div class=\"card-title\">WSTS Global Memory Revenue ($M)</div><div style=\"height:300px;\"><canvas id=\"wstsChart\"></canvas></div></div>";
+  h += "</div></div>";
+
+  document.getElementById("tab-reference").innerHTML = h;
+
+  const omdiaData = omdiaRes.data || [];
+  if(omdiaData.length > 0) {
+      const dramData = omdiaData.filter(d => d.product === "DRAM");
+      const dates = [...new Set(dramData.map(d => d.reference_date))].sort();
+      const getMetric = (metricName) => dates.map(dt => {
+          const row = dramData.find(d => d.reference_date === dt && d.metric === metricName);
+          return row ? row.value : null;
+      });
+      const supply = getMetric("supply");
+      const demand = getMetric("demand");
+      const sufficiency = getMetric("Sufficiency Ratio");
+
+      new Chart(document.getElementById("omdiaChart"), {
+          type: "line",
+          data: {
+              labels: dates,
+              datasets: [
+                  { label:"Sufficiency Ratio (%)", data: sufficiency, yAxisID: "y1", borderColor: "var(--accent)", backgroundColor:"rgba(0,212,170,0.1)", fill:true, tension:0.4, borderWidth:2, pointRadius:0 },
+                  { label:"Supply (M GB)", data: supply, yAxisID: "y2", borderColor: "var(--blue)", borderDash:[5,5], tension:0.4, borderWidth:1, pointRadius:0 },
+                  { label:"Demand (M GB)", data: demand, yAxisID: "y2", borderColor: "var(--warn)", borderDash:[2,2], tension:0.4, borderWidth:1, pointRadius:0 }
+              ]
+          },
+          options: {
+              responsive:true, maintainAspectRatio:false,
+              interaction: { mode: "index", intersect: false },
+              scales: {
+                  x: { grid:{color:"var(--border)"}, ticks:{color:"var(--dim)", font:{family:"var(--font)",size:9}} },
+                  y1: { type:"linear", position:"left", grid:{color:"var(--border)"}, ticks:{color:"var(--accent)", font:{family:"var(--font)",size:9}} },
+                  y2: { type:"linear", position:"right", grid:{drawOnChartArea:false}, ticks:{color:"var(--dim)", font:{family:"var(--font)",size:9}} }
+              },
+              plugins: { legend: { labels: { color:"var(--dim)", font:{family:"var(--font)",size:10} } } }
+          }
+      });
+  }
+
+  const wstsData = wstsRes.data || [];
+  if(wstsData.length > 0) {
+      const dramRev = wstsData.filter(d => d.product === "DRAM" && d.metric === "Revenue");
+      const dates = [...new Set(dramRev.map(d => d.reference_date))].sort();
+      const dramVals = dates.map(dt => { const r = dramRev.find(d=>d.reference_date===dt); return r?r.value:null; });
+
+      new Chart(document.getElementById("wstsChart"), {
+          type: "line",
+          data: {
+              labels: dates,
+              datasets: [
+                  { label:"DRAM Revenue", data: dramVals, borderColor: "var(--blue)", backgroundColor:"rgba(77,171,247,0.1)", fill:true, tension:0.4, borderWidth:2, pointRadius:0 }
+              ]
+          },
+          options: {
+              responsive:true, maintainAspectRatio:false,
+              interaction: { mode: "index", intersect: false },
+              scales: {
+                  x: { grid:{color:"var(--border)"}, ticks:{color:"var(--dim)", font:{family:"var(--font)",size:9}} },
+                  y: { grid:{color:"var(--border)"}, ticks:{color:"var(--blue)", font:{family:"var(--font)",size:9}} }
+              },
+              plugins: { legend: { labels: { color:"var(--dim)", font:{family:"var(--font)",size:10} } } }
+          }
+      });
+  }
+}
 refreshAll();
 </script>
 <footer>
-  <span>Semi-Intel v4.0 — 반도체 사이클 인텔리전스</span>
+  <span>Semi-Intel v4.1 — 반도체 사이클 인텔리전스</span>
   <span id="pipe-status">자동 파이프라인: 확인 중...</span>
   <span id="pipe-next"></span>
 </footer>

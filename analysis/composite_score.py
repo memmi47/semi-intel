@@ -8,7 +8,7 @@ v3.1 → v4.0 핵심 변경:
     · Diagnostic Score  (동행지표, 30% 비중) → "현재 사이클 위치"
     · Confirmation Score (후행지표, 20% 비중) → "Regime 전환 확증"
   - Demand Cycle 서브차원 분리
-    · AI Infra Demand (70%): HYPERSCALER_CAPEX, HBM_PREMIUM, EQUIP_PROXY
+    · AI Infra Demand (70%): HYPERSCALER_CAPEX, EQUIP_PROXY
     · Consumer/Traditional (30%): DGORDER, ISM_MFG, RETAIL, NFP, HOUSING, SOX, CONSUMER_CONF, WSTS
   - Regime 판별: Hysteresis(진입/이탈 임계값 분리) + 교차검증
   - 신규 산출물: regime_probability(4국면 확률), direction_probability(상/보합/하)
@@ -138,10 +138,14 @@ DIMENSION_CONFIG = {
     "price_cycle": {
         "weight": 0.20,
         "indicators": {
-            "DRAM_PROXY": 1.3,
-            "NAND_PROXY": 1.2,
-            "CPI": 0.8,
-            "PPI": 0.8,
+            "DRAM_SPREAD": 1.5,
+            "DXI_INDEX": 1.2,
+            "DRAM_SPOT": 1.0,
+            "NAND_SPOT": 1.0,
+            "DRAM_PROXY": 0.8,
+            "NAND_PROXY": 0.7,
+            "CPI": 0.5,
+            "PPI": 0.5,
         },
     },
     "macro_regime": {
@@ -598,42 +602,42 @@ class CompositeScoreCalculator:
         return regime, desc, action
 
     def _expansion_action(self, dims, predictive: float = 50.0) -> str:
-        parts = ["반도체 섹터 비중 확대 (Overweight)"]
+        parts = ["향후 6개월 반도체 주식 비중을 공격적으로 확대할 것"]
         demand = dims.get("demand_cycle")
         price = dims.get("price_cycle")
         if demand and any(s["indicator_id"] == "HYPERSCALER_CAPEX"
                          for s in demand.contributing_signals
                          if s.get("signal_type") == "bullish"):
-            parts.append("AI/CapEx 테마 집중: SK하이닉스, 삼성전자, NVIDIA 밸류체인")
+            parts.append("AI 및 CapEx 주도주(SK하이닉스 등) 집중 투자를 제안")
         if price and price.score > 65:
-            parts.append("메모리 가격 상승 사이클 → 메모리 비중 확대")
+            parts.append("메모리 가격 랠리 구간임. 순수 메모리 기업 비중 극대화 필요")
         if predictive < 60:
-            parts.append("⚠️ 선행지표 다소 부진 — 피크 신호 모니터링 강화")
-        parts.append("사이클 피크 신호(가동률 85%+, B/B 하락 전환) 모니터링")
+            parts.append("선행지표 상승 탄력 둔화 조짐. 과도한 추격 매수는 자제할 것")
+        parts.append("가동률 85% 이상 도달 여부 및 장비 출하량 피크아웃 신호에 대한 지속적 모니터링을 요망")
         return " | ".join(parts)
 
     def _late_cycle_action(self, dims) -> str:
         return " | ".join([
-            "선별적 포지션 유지 (Neutral → Underweight 준비)",
-            "밸류에이션 높은 종목 차익실현 검토",
-            "방어적 전환: 장비/소재 → 팹리스, 서비스 쪽으로 이동",
-            "HY Spread 확대 + Sahm Rule 상승 시 즉각 비중 축소",
+            "향후 6개월 반도체 주식 비중을 선별적으로 축소할 준비가 필요함",
+            "밸류에이션이 우수한 주도주 위주로 차익실현에 나설 것을 제안",
+            "동행지표는 양호하나 선행지표 악화가 가시화되었으므로 방어적 스탠스로 전환할 것",
+            "신용 스프레드(HY Spread) 급등이나 실업률 기준선(Sahm Rule) 도달 시 즉각 전면 차익실현 및 현금 확보 요망",
         ])
 
     def _contraction_action(self, dims) -> str:
         return " | ".join([
-            "반도체 비중 축소 (Underweight)",
-            "현금 비중 확대, 방어주/배당주 비중 늘리기",
-            "바닥 신호 모니터링: DRAM 가격 반등, ISM New Orders 반전, LEI 반등",
-            "HY Spread 축소 전환 확인 후 장비/소재 섹터 선제 매수 준비",
+            "향후 6개월 반도체 주식 비중 축소 의견을 강하게 유지함",
+            "적극적인 현금 비중 확대를 제안하며, 기술주보다 방어주/배당주 중심의 피난처 확보가 필요함",
+            "현물 가격의 의미 있는 반등이나 신규주문(ISM New Orders) 개선 전까지 철저히 관망할 것",
+            "하락장 후반 신용 스프레드 축소 신호 확인 시, 장비/소재 섹터 선제 매수를 1차로 준비할 것",
         ])
 
     def _recovery_action(self, dims) -> str:
         return " | ".join([
-            "바닥 매수 개시 (Underweight → Neutral)",
-            "사이클 초기 수혜: 반도체 장비(ASML, 도쿄일렉트론), 소재(SK머티리얼즈)",
-            "Sahm Rule 0.3 이하 + HY Spread 축소 확인 시 메모리 본격 매수",
-            "점진적 비중 확대, 급격한 올인 지양",
+            "향후 6개월 반도체 주식 비중을 점진적으로 확대할 것을 제안",
+            "사이클 초기 수혜주인 대형 장비 및 소재 기업을 1차 매수 기회로 삼을 것",
+            "고용 지표 악화(Sahm Rule)가 진정되고 거시 리스크가 완화됨을 확인 후, 메모리 주식 전면 매수에 나설 것",
+            "과매도 구간 통과 중임. 공격적인 올인보다는 분할 매수 접근이 유리함",
         ])
 
     def save_to_db(self, result: CompositeResult) -> None:
