@@ -92,7 +92,6 @@ DIMENSION_CONFIG = {
             "HOUSING": 0.5,
             "SOX": 1.0,
             "HYPERSCALER_CAPEX": 1.5,
-            "HBM_PREMIUM": 1.2,
             "WSTS": 0.5,
         },
         # v4.0: 서브차원 (AI Infra 70% / Consumer 30%)
@@ -101,12 +100,11 @@ DIMENSION_CONFIG = {
                 "internal_weight": 0.70,
                 "indicators": {
                     "HYPERSCALER_CAPEX": 1.5,
-                    "HBM_PREMIUM": 1.2,
                     "EQUIP_PROXY": 1.3,
                 },
                 "rationale": (
                     "AI/데이터센터 수요가 반도체 매출 성장의 90% 이상을 견인 (2024~현재). "
-                    "하이퍼스케일러 CapEx/HBM/장비 발주는 Consumer 사이클보다 2~3배 빠른 속도로 확대. "
+                    "하이퍼스케일러 CapEx/장비 발주는 Consumer 사이클보다 2~3배 빠른 속도로 확대. "
                     "AI 인프라가 사이클의 주 드라이버로 전환됨에 따라 비중 70%로 상향."
                 ),
             },
@@ -603,10 +601,10 @@ class CompositeScoreCalculator:
         parts = ["반도체 섹터 비중 확대 (Overweight)"]
         demand = dims.get("demand_cycle")
         price = dims.get("price_cycle")
-        if demand and any(s["indicator_id"] in ["HYPERSCALER_CAPEX", "HBM_PREMIUM"]
+        if demand and any(s["indicator_id"] == "HYPERSCALER_CAPEX"
                          for s in demand.contributing_signals
                          if s.get("signal_type") == "bullish"):
-            parts.append("AI/HBM 테마 집중: SK하이닉스, 삼성전자, NVIDIA 밸류체인")
+            parts.append("AI/CapEx 테마 집중: SK하이닉스, 삼성전자, NVIDIA 밸류체인")
         if price and price.score > 65:
             parts.append("메모리 가격 상승 사이클 → 메모리 비중 확대")
         if predictive < 60:
