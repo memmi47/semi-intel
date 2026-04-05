@@ -517,7 +517,7 @@ function renderScenarios(){
         expected += scDelta;
         
         // Update tornado bar
-        let barPct = Math.abs(scDelta) / maxImpact * 50; // max 50% of container
+        let barPct = Math.abs(scDelta) / maxImpact * 95; // max 95% of each half
         let leftBar = document.getElementById('tbar-l-'+el.dataset.idx);
         let rightBar = document.getElementById('tbar-r-'+el.dataset.idx);
         let labelEl = document.getElementById('scen-label-'+el.dataset.idx);
@@ -548,7 +548,7 @@ function renderScenarios(){
   
   // Table header
   h += `<table style="width:100%;border-collapse:collapse;table-layout:fixed">`;
-  h += `<colgroup><col style="width:180px"><col style="width:70px"><col><col style="width:52px"></colgroup>`;
+  h += `<colgroup><col style="width:140px"><col style="width:60px"><col><col style="width:56px"></colgroup>`;
   h += `<thead><tr style="font-size:10px;color:var(--dim);border-bottom:1px solid var(--border)">`;
   h += `<th style="text-align:left;padding:8px 4px;font-weight:500">이벤트</th>`;
   h += `<th style="text-align:center;padding:8px 4px;font-weight:500">확률</th>`;
@@ -556,20 +556,25 @@ function renderScenarios(){
   h += `<th style="text-align:center;padding:8px 2px;font-weight:500">영향</th>`;
   h += `</tr></thead><tbody>`;
   
+  let footnotes = [];
+  
   (scenarioData.scenarios||[]).forEach((sc, idx)=>{
     const s = sc.scenario||{};
     let initProb = (s.probability != null) ? Math.round(s.probability * 100) : 30;
-    const barHeight = Math.max(10, Math.min(22, 8 + Math.abs(sc.delta) / maxImpact * 14));
+    const barHeight = Math.max(12, Math.min(24, 10 + Math.abs(sc.delta) / maxImpact * 14));
+    
+    footnotes.push({name: s.name||'', desc: s.description||'', impact: sc.delta});
 
     h += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">`;
     
-    // Col 1: Event name
+    // Col 1: Event name (compact, with footnote number)
     h += `<td style="padding:10px 4px">`;
-    h += `<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.name||''}">${s.name||''}</div>`;
-    h += `<div style="font-size:9px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.description||''}">${s.description||''}</div>`;
+    h += `<div style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:baseline;gap:4px">`;
+    h += `<span style="font-size:9px;color:var(--dim);font-family:var(--font)">${idx+1}.</span> ${s.name||''}`;
+    h += `</div>`;
     h += `</td>`;
     
-    // Col 2: Probability input box — plain text, no spinners
+    // Col 2: Probability input box
     h += `<td style="padding:6px 4px;text-align:center">`;
     h += `<div style="display:inline-flex;align-items:center;background:var(--surface);border:1.5px solid var(--border);border-radius:5px;padding:0;overflow:hidden">`;
     h += `<input type="text" inputmode="decimal" class="scen-input" data-idx="${idx}" data-impact="${sc.delta}" value="${initProb}" oninput="updateScenarioMath()" style="width:36px;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:13px;font-weight:600;padding:6px 2px 6px 8px;outline:none;text-align:right">`;
@@ -577,16 +582,13 @@ function renderScenarios(){
     h += `</div>`;
     h += `</td>`;
     
-    // Col 3: Tornado bar (single cell, split in half)
+    // Col 3: Tornado bar — fills up to 95% of each half
     h += `<td style="padding:6px 2px">`;
     h += `<div style="position:relative;width:100%;height:${barHeight}px;display:flex">`;
-    // Left half (negative)
     h += `<div style="width:50%;display:flex;justify-content:flex-end">`;
     h += `<div id="tbar-l-${idx}" style="height:100%;background:#ff6b6b;border-radius:3px 0 0 3px;transition:width 0.3s ease,opacity 0.3s ease;opacity:0;box-shadow:0 0 6px rgba(255,107,107,0.3)"></div>`;
     h += `</div>`;
-    // Center divider
     h += `<div style="width:2px;background:rgba(255,255,255,0.15);flex-shrink:0"></div>`;
-    // Right half (positive)
     h += `<div style="width:50%;display:flex;justify-content:flex-start">`;
     h += `<div id="tbar-r-${idx}" style="height:100%;background:#00d4aa;border-radius:0 3px 3px 0;transition:width 0.3s ease,opacity 0.3s ease;opacity:0;box-shadow:0 0 6px rgba(0,212,170,0.3)"></div>`;
     h += `</div>`;
@@ -600,7 +602,24 @@ function renderScenarios(){
     
     h += `</tr>`;
   });
-  h += `</tbody></table></div>`;
+  h += `</tbody></table>`;
+  
+  // Footnotes: event descriptions
+  h += `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">`;
+  h += `<div style="font-size:10px;color:var(--dim);font-family:var(--font);letter-spacing:0.5px;margin-bottom:10px">EVENT DESCRIPTIONS</div>`;
+  h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px">`;
+  footnotes.forEach((fn, i) => {
+    const impactColor = fn.impact > 0 ? '#00d4aa' : '#ff6b6b';
+    const impactSign = fn.impact > 0 ? '+' : '';
+    h += `<div style="font-size:10px;line-height:1.5;color:var(--dim);padding:4px 0">`;
+    h += `<span style="color:var(--text);font-weight:600">${i+1}. ${fn.name}</span>`;
+    h += ` <span style="color:${impactColor};font-family:var(--font);font-size:9px">(Max ${impactSign}${fn.impact.toFixed(1)})</span>`;
+    h += `<br>${fn.desc}`;
+    h += `</div>`;
+  });
+  h += `</div></div>`;
+  
+  h += `</div>`;
 
   document.getElementById('tab-scenarios').innerHTML=h;
   setTimeout(() => window.updateScenarioMath(), 100);
