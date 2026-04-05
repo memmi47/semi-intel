@@ -494,49 +494,61 @@ function renderSignals(){
 // SCENARIOS (What-if, no PROB column)
 // ============================================================
 function renderScenarios(){
-  if(!scenarioData)return;
-  const base=scenarioData.base_score;
-  let h='';
-  h+='<div class="card">';
-  h+=`<div style="display:flex;justify-content:space-between;margin-bottom:8px"><div><div class="card-title">가상 시나리오 분석 (What-if)</div><div style="font-size:12px">기준 점수: <span style="color:var(--accent);font-weight:700;font-family:var(--font)">${base}</span></div></div></div>`;
-  h+=`<div style="font-size:10px;color:var(--dim);margin-bottom:14px;line-height:1.6">각 시나리오는 "만약 이런 상황이 발생한다면" 현재 Composite Score에 미치는 영향을 계산한 것입니다. 실제 발생 확률은 현재 경제 상황에 따라 달라지므로 별도로 표시하지 않습니다.</div>`;
-  h+='<div class="sc-row sc-header"><span>시나리오</span><span style="text-align:right">변동</span><span style="text-align:center">영향</span><span style="text-align:right">점수</span><span style="text-align:right">국면</span></div>';
-  (scenarioData.scenarios||[]).forEach(sc=>{
-    const s=sc.scenario||{};
-    const pos=sc.delta>0;
-    const c=pos?'#00d4aa':'#ff6b6b';
-    const bw=Math.min(Math.abs(sc.delta)/30*100,100);
-    const rc=REGIME_COLORS[sc.adjusted_regime]||'var(--dim)';
-    h+=`<div class="sc-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.description||''}">${s.name||''}</span><span style="text-align:right;color:${c};font-weight:600">${sc.delta>0?'+':''}${sc.delta?.toFixed(1)}</span><div style="height:4px;background:var(--border);border-radius:2px;position:relative"><div style="position:absolute;height:100%;border-radius:2px;background:${c};${pos?'left:50%;width:'+bw/2+'%':'right:50%;width:'+bw/2+'%'}"></div><div style="position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--dim)"></div></div><span style="text-align:right">${sc.adjusted_score?.toFixed(1)}</span><span style="text-align:right;color:${rc};font-size:9px">${REGIME_LABELS[sc.adjusted_regime]||''}${sc.regime_changed?' &#9888;':''}</span></div>`;
-  });
-  h+='</div>';
+  if(!scenarioData||!scenarioData.scenarios){document.getElementById('tab-scenarios').innerHTML='<div class="loading">데이터 없음</div>';return;}
+  
+  let h = '<div class="card"><div class="card-title">DYNAMIC SCENARIO ANALYSIS</div>';
+  h += '<div style="font-size:11px;color:var(--text);line-height:1.6;margin-bottom:16px">각 이벤트의 예상 발생 확률을 조절하여 총점(Expected Score)의 변화를 직접 시뮬레이션 해보세요.</div>';
+  
+  const baseScore = scoreData?.total_score || 50.0;
+  h += `<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-bottom:24px;padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:8px">`;
+  h += `<div><div style="font-size:9px;color:var(--dim);font-family:var(--font);letter-spacing:1px;text-align:center">CURRENT BASE SCORE</div><div style="font-size:24px;font-weight:700;font-family:var(--font);color:var(--text);text-align:center">${baseScore.toFixed(1)}</div></div>`;
+  h += `<div style="color:var(--border)">▶</div>`;
+  h += `<div><div style="font-size:9px;color:var(--accent);font-family:var(--font);letter-spacing:1px;text-align:center">SIMULATED EXPECTED SCORE</div><div id="dyn-expected-score" style="font-size:32px;font-weight:700;font-family:var(--font);color:var(--accent);text-align:center">${baseScore.toFixed(1)}</div></div>`;
+  h += `</div>`;
 
-  // Chart
-  h+='<div class="card" style="margin-top:16px"><div class="card-title">SCORE IMPACT BY SCENARIO</div><div class="chart-wrap"><canvas id="scenarioChart"></canvas></div></div>';
+  window.updateScenarioMath = function() {
+    let expected = baseScore;
+    document.querySelectorAll('.scen-slider').forEach(el => {
+        let prob = parseFloat(el.value) / 100.0;
+        let impact = parseFloat(el.dataset.impact);
+        let scDelta = impact * prob;
+        expected += scDelta;
+        
+        document.getElementById('scen-prob-'+el.dataset.idx).innerText = el.value + '%';
+        let deltaSpan = document.getElementById('scen-delta-'+el.dataset.idx);
+        deltaSpan.innerText = (scDelta>0?'+':'') + scDelta.toFixed(1);
+        deltaSpan.style.color = scDelta>0 ? '#00d4aa' : '#ff6b6b';
+    });
+    
+    expected = Math.max(0, Math.min(100, expected)); // bound to 0-100
+    const expEl = document.getElementById('dyn-expected-score');
+    expEl.innerText = expected.toFixed(1);
+    expEl.style.color = expected >= 65 ? '#00d4aa' : expected < 40 ? '#ff6b6b' : '#f0b429';
+  };
+  
+  h += `<div style="display:grid;gap:12px">`;
+  (scenarioData.scenarios||[]).forEach((sc, idx)=>{
+    const s = sc.scenario||{};
+    let initProb = 30; // 기준 확률 시작점
+    if (s.name.includes("China")) initProb = 40;
+    if (s.name.includes("Recession")) initProb = 20;
 
-  // Regime zones with explanation
-  const curRegime=scoreData?.regime;
-  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">';
-  [{r:'expansion',range:'65-100',desc:'반도체 비중 확대, AI/HBM 집중'},{r:'late_cycle',range:'50-65',desc:'선별적 유지, 차익실현 준비'},{r:'contraction',range:'35-50',desc:'비중 축소, 바닥 모니터링'},{r:'recovery',range:'0-35↑',desc:'바닥 매수 시작, 장비/소재 선행'}].forEach(z=>{
-    const isCur=curRegime===z.r;
-    h+=`<div class="regime-box ${isCur?'current':'inactive'}" style="background:var(--surface);border:1px solid ${isCur?REGIME_COLORS[z.r]+'66':'var(--border)'};border-top-color:${REGIME_COLORS[z.r]}"><h4 style="color:${REGIME_COLORS[z.r]}">${REGIME_LABELS[z.r]}</h4><div class="range">${z.range}</div><div class="desc">${z.desc}</div></div>`;
+    h += `<div style="padding:16px;background:var(--elevated);border:1px solid var(--border);border-radius:6px">`;
+    h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">`;
+    h += `<span style="font-size:12px;font-weight:600;color:var(--text)">${s.name||''}</span>`;
+    h += `<span style="font-size:11px;font-family:var(--font);background:var(--bg);padding:2px 8px;border-radius:4px">예상 변동 폭: <span id="scen-delta-${idx}" style="color:${sc.delta>0?'#00d4aa':'#ff6b6b'};font-weight:700;margin-left:4px">0.0</span> <span style="color:var(--dim);font-size:9px;margin-left:4px">(Max Impact: ${sc.delta>0?'+':''}${sc.delta.toFixed(1)})</span></span>`;
+    h += `</div>`;
+    h += `<div style="font-size:10px;color:var(--dim);margin-bottom:12px;line-height:1.5">${s.description||''}</div>`;
+    h += `<div style="display:flex;align-items:center;gap:12px">`;
+    h += `<span style="font-size:9px;color:var(--dim)">0% (발생 안함)</span>`;
+    h += `<input type="range" class="scen-slider" data-idx="${idx}" data-impact="${sc.delta}" value="${initProb}" min="0" max="100" step="5" oninput="updateScenarioMath()" style="flex:1;accent-color:var(--accent);cursor:pointer">`;
+    h += `<span id="scen-prob-${idx}" style="font-size:11px;font-family:var(--font);width:40px;text-align:right;color:var(--text);font-weight:600">${initProb}%</span>`;
+    h += `</div></div>`;
   });
-  h+='</div>';
+  h += `</div></div>`;
 
   document.getElementById('tab-scenarios').innerHTML=h;
-
-  // Bar chart
-  const scs=scenarioData.scenarios||[];
-  if(scs.length>0){
-    const ctx=document.getElementById('scenarioChart');
-    if(ctx){
-      if(charts.scenario)charts.scenario.destroy();
-      charts.scenario=new Chart(ctx,{type:'bar',data:{
-        labels:scs.map(s=>(s.scenario?.name||'').substring(0,14)),
-        datasets:[{data:scs.map(s=>s.delta),backgroundColor:scs.map(s=>s.delta>0?'rgba(0,212,170,0.7)':'rgba(255,107,107,0.7)'),borderRadius:4}]
-      },options:{indexAxis:'y',scales:{x:{grid:{color:'#1c2638'},ticks:{color:'#5a6d84',font:{size:9}}},y:{grid:{display:false},ticks:{color:'#5a6d84',font:{size:10,family:'Menlo'}}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});
-    }
-  }
+  setTimeout(() => window.updateScenarioMath(), 100);
 }
 
 // ============================================================
@@ -685,7 +697,7 @@ async function renderMemoryReference() {
       });
       const supply = getMetric("supply");
       const demand = getMetric("demand");
-      const sufficiency = getMetric("Sufficiency Ratio");
+      const sufficiency = getMetric("Sufficiency");
 
       new Chart(document.getElementById("omdiaChart"), {
           type: "line",
