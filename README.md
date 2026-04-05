@@ -8,13 +8,13 @@
 
 Bernard Baumohl의 "The Secrets of Economic Indicators" 3판과 최신 사이클 연구를 기반하여 총 26개 경제 지표를 데이터베이스화하고, 반도체 섹터에 특화된 투자 시그널을 생성하는 예측 중심의 지능형 시스템 구축.
 
-### 🌟 v4.0 핵심 업데이트
+### 🌟 v4.1 핵심 업데이트 (Memory Cycle Now)
 
-*   **3-Layer Scoring Architecture**: 단일 점수가 아닌, 지표의 선후행성(Timing)에 따라 3개 계층(Predictive 선행, Diagnostic 동행, Confirmation 후행)으로 점수를 분리하여 산출. 향후 3~6개월의 방향성을 조기 포착함.
-*   **Regime Hysteresis Engine**: 국면(Regime) 전환 시 불필요한 노이즈를 막고자 진입/이탈 한계 임계값을 분리. (e.g. 확장기 진입은 까다롭게, 수축기 진입은 보수적으로 설정)
-*   **Price Engine 융합**: 누적 수급 갭(Inventory Proxy) 기반으로 메모리 시장 내 '가격 대 펀더멘털의 괴리(Divergence)'를 식별하는 독립적 모듈.
-*   **Demand 차원 분해**: 사이클 주도권이 AI 인프라로 옮겨간 점을 반영, 수요 차원을 AI Infra(70%)와 Consumer(30%)로 재구축.
-*   **2대 핵심 매크로 지표 편입**: 하이일드 신용 스프레드(리스크 탐지)와 샴의 법칙(Sahm Rule; 실시간 리세션 탐지)을 1차 레이어에 편입.
+*   **Interactive Scenario Dashboard**: 사전 정의된 시나리오 고정 점수를 넘어, 사용자 스스로 각 경제/반도체 이벤트 발생 확률(0~100%)을 실시간으로 조절하며 예상 점수(Expected Score)를 시뮬레이션 할 수 있는 프론트엔드 엔진 구축.
+*   **Offline Memory Reference**: 실시간 엔진과 격리된 보조 지표로서, Omdia(1Q11~4Q25) 및 WSTS 과거 수급률 및 시장 규모 데이터를 독자적인 UI 탭으로 별도 시각화.
+*   **Methodology & Action 고도화**: 국면 전환 임계값(Threshold)을 방법론에 명문화하고, Investment Action의 주관적 추천 멘트를 배제, 향후 6개월 기준 관점의 객관적/방어적 투자 지침으로 전면 개편.
+*   **3-Layer Scoring Architecture**: 단일 점수가 아닌, 지표의 선후행성(Timing)에 따라 3개 계층(Predictive 선행, Diagnostic 동행, Confirmation 후행)으로 점수를 분리하여 산출해 시장 변곡점을 조기 포착 (v4.0 기반 상속).
+*   **2대 핵심 매크로 지표 편입**: 하이일드 신용 스프레드(리스크 탐지)와 샴의 법칙(Sahm Rule; 실시간 리세션 탐지)의 레이어 반영.
 
 ## 지표 체계
 
